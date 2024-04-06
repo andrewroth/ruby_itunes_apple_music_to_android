@@ -9,7 +9,9 @@ It will try to use iSyncr tracks already copied to the device if possible.
 It uses FTP for the file transfer, so technically any device or machine that can run FTP can work.
 There's a free android file browser called [File Manager Plus](https://play.google.com/store/apps/details?id=com.alphainventor.filemanager) that has an FTP option built-in that works well.
 
-I've tested it on Mac and PC, but it should work fine in linux as well.
+I've tested it on Mac and PC, but it should run in linux as well.
+
+This is alpha software; I haven't tested it on a very large iTunes library with thousands of songs yet. Still, I think it may already work well enough to be useful.
 
 ![image](https://github.com/andrewroth/ruby_itunes_apple_music_to_android/assets/13490/cb9522c8-b998-417e-82fa-0622191300fd)
 
