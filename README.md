@@ -2,8 +2,12 @@
 
 This is a ruby application for copying your iTunes/Apple Music tracks and playlists to android devices.
 
+The user selects which playlists to copy, and there's a copy progress bar and status so you know exactly how far along the copy is.
+
+It will try to use iSyncr tracks already copied to the device if possible.
+
 It uses FTP for the file transfer, so technically any device or machine that can run FTP can work.
-There's a free android file browser called [File Manager Plus](https://play.google.com/store/apps/details?id=com.alphainventor.filemanager) that has an FTP option built-in that works.
+There's a free android file browser called [File Manager Plus](https://play.google.com/store/apps/details?id=com.alphainventor.filemanager) that has an FTP option built-in that works well.
 
 I've tested it on Mac and PC, but it should work fine in linux as well.
 
