@@ -16,7 +16,8 @@ I've tested it on Mac and PC, but it should work fine in linux as well.
 ## Exporting from iTunes/Apple Music
 
 Unfortunately, I couldn't find a way to extract the iTunes/Apple Music library, so you'll have to go
-File -> Library -> Export Library... and save Library.xml to the folder you clone
+File -> Library -> Export Library... and save Library.xml to the app folder. This has to be done every
+time. It could perhaps be automated with AppleScript on macs. 
 
 ## iSyncr
 
