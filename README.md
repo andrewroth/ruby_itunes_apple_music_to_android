@@ -43,7 +43,7 @@ work to get it installed, but it's fairly standard stuff.
 2. Install "TK". Google your operating system + "tk install guide" for instructions as people have written
    guides. In my experience, it's not too hard; there's prepackaged TK installs available.
 
-3. Clone this repo and run `gem install` to get the required gems installed.
+3. Clone this repo and run `bundle install` to get the required gems installed.
 
 4. run `ruby run.rb` to run the app, or run "run.mac" which is a simple applescript file I made to run the
    app in a terminal window.
