@@ -153,7 +153,9 @@ class Library
         file.puts("#EXTM3U")
         playlist[:track_ids].each do |track_id|
           track = @tracks[track_id]
-          file.puts(track[:device_location][Settings.instance.values[:ftp_path].length..])
+          playlist_path = track[:device_location][Settings.instance.values[:ftp_path].length..]
+          playlist_path.sub!(/^\//, "")
+          file.puts(playlist_path)
         end
       end
 
