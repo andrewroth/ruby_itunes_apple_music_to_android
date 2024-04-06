@@ -65,8 +65,14 @@ class Library
         device_location.sub!(/^\/?Music\//, "")
 
         # try to get a proper file path that will actually exist
-        location.gsub!(/^file:\/\/(localhost)?\/?/, "")#.gsub!("%20", " ")
-        raise("File #{location} does not exist.") unless File.exists?(location)
+        location.gsub!(/^file:\/\/(localhost\/)?/, "")
+
+        # TODO: better to raise and catch this, handle all errors into a status instead of just this one
+        unless File.exists?(location)
+          msg = "Error loading library: File #{location.inspect} does not exist"
+          set_main_status(msg)
+          raise(msg)
+        end
 
         log("device_location: #{device_location}")
         byebug if device_location.start_with?("file:")
