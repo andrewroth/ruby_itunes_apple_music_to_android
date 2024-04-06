@@ -70,6 +70,8 @@ Some ideas I have for future work:
 - deletion of files or playlists from device
 - tabs to make the UI cleaner. Ex. "Config", "About", "Copy", "Log", etc.
 - indication of device space used/free
+- refactor track and playlist into their own model (and numerous other code cleanups)
+- add standardrb to keep ruby style consistent
 
 By all means, let me know of any feature requests and bugs. I'm glad to look at pull requests and add other
 developers if there's interest.

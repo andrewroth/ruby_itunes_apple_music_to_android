@@ -1,0 +1,7 @@
+copy.sh
+Library.xml
+Gemfile.lock
+cache.yml
+device_cache_key
+device_playlist_copy
+playlists_from_library
