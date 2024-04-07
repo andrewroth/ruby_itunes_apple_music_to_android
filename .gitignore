@@ -5,3 +5,6 @@ cache.yml
 device_cache_key
 device_playlist_copy
 playlists_from_library
+settings.yml
+.byebug_history
+.tool-versions
