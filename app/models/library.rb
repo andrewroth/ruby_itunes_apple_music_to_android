@@ -59,8 +59,8 @@ class Library
 
         #location = CGI.unescape(location)
         #device_location = CGI.unescape(device_location)
-        location.gsub!("%20", "")
-        device_location.gsub!("%20", "")
+        location.gsub!("%20", " ")
+        device_location.gsub!("%20", " ")
 
         # if location now starts with Music/ or /Music/, cut that out
         location.sub!(/^\/?Music\//, "")
