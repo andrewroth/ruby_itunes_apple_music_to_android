@@ -28,6 +28,11 @@ class Library
     set_progress_max(tracks_count + playlists_count)
   end
 
+  def unescape_xml(s)
+    # https://stackoverflow.com/questions/1091945/what-characters-do-i-need-to-escape-in-xml-documents/17448222#17448222
+    s.gsub("%20", " ").gsub("&#38;", "&")
+  end
+
   def load_tracks
     key = nil
     @tracks = {}
@@ -59,8 +64,8 @@ class Library
 
         #location = CGI.unescape(location)
         #device_location = CGI.unescape(device_location)
-        location.gsub!("%20", " ")
-        device_location.gsub!("%20", " ")
+        location = unescape_xml(location)
+        device_location = unescape_xml(device_location)
 
         # if location now starts with Music/ or /Music/, cut that out
         location.sub!(/^\/?Music\//, "")
