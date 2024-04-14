@@ -8,3 +8,4 @@ playlists_from_library
 settings.yml
 .byebug_history
 .tool-versions
+.DS_Store
