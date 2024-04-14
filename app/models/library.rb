@@ -16,6 +16,7 @@ class Library
     @doc = File.open(xml_path) { |f| Nokogiri::XML(f) };
     log("Done")
     @music_folder = @doc.xpath('/plist/dict/key[text()="Music Folder"]').first.next_element.text
+    @music_folder_path = unescape_xml(strip_url_file_path_starting(@music_folder))
     set_progress_total
     load_tracks
     load_playlists
@@ -31,14 +32,21 @@ class Library
 
   def unescape_xml(s)
     # https://stackoverflow.com/questions/1091945/what-characters-do-i-need-to-escape-in-xml-documents/17448222#17448222
-    s.gsub("%20", " ").gsub("&#38;", "&")
+    s.gsub("&#60;", "<")
+      .gsub("&#62;", ">")
+      .gsub("&#34;", "\"")
+      .gsub("&#38;", "&")
+      .gsub("&#39;", "'")
+    # ex "Crumba%CC%88cher" -> "Crumbächer"; CC and 88 are hex bytes of a UTF-8 string encoding
+      .gsub(/%([0-9,A-F]{2})/) { |s| [$1.to_i(16)].pack("c*").force_encoding("UTF-8") }
   end
 
   # store results in instance variable to avoid having to compute file sizes again if the same directories are hit
   def disk_file_sizes_to_path(dir, extension, recursive: true)
-    return {} unless File.directory?(path)
+    log("enter disk_file_sizes_to_path(dir: #{dir.inspect}, extension: #{extension}, recursive: #{recursive}")
+    return {} unless File.directory?(dir)
 
-    path = path.chop if path.end_with?("/")
+    dir = dir.chop if dir.end_with?("/")
 
     @disk_file_sizes_to_path ||= {}
 
@@ -47,7 +55,7 @@ class Library
         if recursive
           sizes.merge!(file_sizes_to_path(path, extension, recursive))
         end
-
+      else
         @disk_file_sizes_to_path[File.size(path)] = path
       end
     end
@@ -60,7 +68,7 @@ class Library
   # The more nested the path the less files to look through to match by size, but the special character might be in the
   # nested directory.
   def find_track_file_by_size(track_path, track_size)
-    byebug
+    log("enter find_track_file_by_size(track_path: #{track_path.inspect}, track_size: #{track_size}")
     base = File.dirname(track_path)
     extension = track_path.split(".").last
 
@@ -73,8 +81,12 @@ class Library
     # look in current path dir then go up one dir, keep trying unil music_folder
     split_base = base.split("/")
     while split_base.any?
-      byebug
-      break if split_base.join("/") == music_folder
+      log("search look, split_base: #{split_base.inspect}")
+
+      if split_base.join("/").length < @music_folder_path.length
+        log("Giving up search because hit music folder length")
+        break
+      end
 
       disk_file_sizes_to_path(split_base.join("/"), extension, recursive: true)
       if path = @disk_file_sizes_to_path[track_size]
@@ -83,7 +95,14 @@ class Library
       end
 
       split_base.pop
+    end
+
     nil
+  end
+
+  # "file:///Users/andrew/Music/iTunes/iTunes%20Media/" -> "//Users/andrew/Music/iTunes/iTunes%20Media/"
+  def strip_url_file_path_starting(s)
+    s.gsub(/^file:\/\/(localhost\/)?/, "")
   end
 
   def load_tracks
@@ -100,6 +119,7 @@ class Library
         name = el.xpath("key[text()='Name']").first.next_element.text
         size = el.xpath("key[text()='Size']").first.next_element.text.to_i
         location = el.xpath("key[text()='Location']").first
+
         if location
           location = location.next_element.text
         else
@@ -120,21 +140,25 @@ class Library
         location = unescape_xml(location)
         device_location = unescape_xml(device_location)
 
-        # if location now starts with Music/ or /Music/, cut that out
-        location.sub!(/^\/?Music\//, "")
+        # if device location now starts with Music/ or /Music/, cut that out
         device_location.sub!(/^\/?Music\//, "")
 
         # try to get a proper file path that will actually exist
-        location.gsub!(/^file:\/\/(localhost\/)?/, "")
+        location = strip_url_file_path_starting(location)
 
-        # TODO: better to raise and catch this, handle all errors into a status instead of just this one
         unless File.exists?(location)
-          msg = "Error loading library: File #{location.inspect} does not exist"
+          new_location = find_track_file_by_size(location, size) 
+          location = new_location if new_location
+        end
+          
+        if location.nil? || !File.exists?(location)
+          msg = "Error loading library: File #{location.inspect} does not exist, and can't find it by a file size match search."
           set_main_status(msg)
           raise(msg)
         end
 
-        log("device_location: #{device_location}")
+        log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
+
         byebug if device_location.start_with?("file:")
         @tracks[track_id] = { id: track_id, name: name, size: size, location: location, device_location: device_location }
 

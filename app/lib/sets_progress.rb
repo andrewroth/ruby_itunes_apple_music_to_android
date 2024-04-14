@@ -30,10 +30,9 @@ module SetsProgress
   end
 
   def progress_complete
-    set_progress_max(1)
+    log("complete progress")
     MainUi.instance.progress.value = progress_max
     sleep 0.1
     MainUi.instance.progress.value = 0
-    set_progress_max(0)
   end
 end
