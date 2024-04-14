@@ -11,6 +11,7 @@ class Library
   attr_accessor :tracks, :playlists, :tracks_by_size, :music_folder
 
   def initialize(xml_path = "Library.xml")
+    @disk_file_sizes_to_path = {}
     log("Loading #{xml_path}...")
     @doc = File.open(xml_path) { |f| Nokogiri::XML(f) };
     log("Done")
@@ -31,6 +32,58 @@ class Library
   def unescape_xml(s)
     # https://stackoverflow.com/questions/1091945/what-characters-do-i-need-to-escape-in-xml-documents/17448222#17448222
     s.gsub("%20", " ").gsub("&#38;", "&")
+  end
+
+  # store results in instance variable to avoid having to compute file sizes again if the same directories are hit
+  def disk_file_sizes_to_path(dir, extension, recursive: true)
+    return {} unless File.directory?(path)
+
+    path = path.chop if path.end_with?("/")
+
+    @disk_file_sizes_to_path ||= {}
+
+    Dir.glob("#{dir}/**/*.#{extension}").each do |path|
+      if File.directory?(path)
+        if recursive
+          sizes.merge!(file_sizes_to_path(path, extension, recursive))
+        end
+
+        @disk_file_sizes_to_path[File.size(path)] = path
+      end
+    end
+
+    @disk_file_sizes_to_path
+  end
+
+  # Some of the encoding iTunes does for special characters is very odd. Since we know the file sizes, I think the
+  # best approach is to just look for the file by exact size match, going up directories from the most nested first.
+  # The more nested the path the less files to look through to match by size, but the special character might be in the
+  # nested directory.
+  def find_track_file_by_size(track_path, track_size)
+    byebug
+    base = File.dirname(track_path)
+    extension = track_path.split(".").last
+
+    # look for a match already, maybe from a previous file size scan
+    if path = @disk_file_sizes_to_path[track_size]
+      log("found path for #{track_path}: #{path}") 
+      return path
+    end
+
+    # look in current path dir then go up one dir, keep trying unil music_folder
+    split_base = base.split("/")
+    while split_base.any?
+      byebug
+      break if split_base.join("/") == music_folder
+
+      disk_file_sizes_to_path(split_base.join("/"), extension, recursive: true)
+      if path = @disk_file_sizes_to_path[track_size]
+        log("found path for #{track_path}: #{path}") 
+        return path
+      end
+
+      split_base.pop
+    nil
   end
 
   def load_tracks
