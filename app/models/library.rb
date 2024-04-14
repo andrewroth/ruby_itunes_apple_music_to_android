@@ -42,20 +42,19 @@ class Library
   end
 
   # store results in instance variable to avoid having to compute file sizes again if the same directories are hit
-  def disk_file_sizes_to_path(dir, extension, recursive: true)
-    log("enter disk_file_sizes_to_path(dir: #{dir.inspect}, extension: #{extension}, recursive: #{recursive}")
+  def disk_file_sizes_to_path(dir, extension)
+    log("enter disk_file_sizes_to_path(dir: #{dir.inspect}, extension: #{extension}")
     return {} unless File.directory?(dir)
 
     dir = dir.chop if dir.end_with?("/")
 
     @disk_file_sizes_to_path ||= {}
 
-    Dir.glob("#{dir}/**/*.#{extension}").each do |path|
-      if File.directory?(path)
-        if recursive
-          sizes.merge!(file_sizes_to_path(path, extension, recursive))
-        end
-      else
+    glob_path = "#{dir}/**/*.#{extension}"
+    log("globbing #{glob_path}")
+    Dir.glob(glob_path).each do |path|
+      unless File.directory?(path)
+        log("@disk_file_sizes_to_path[#{File.size(path)}] = #{path.inspect}")
         @disk_file_sizes_to_path[File.size(path)] = path
       end
     end
@@ -83,12 +82,12 @@ class Library
     while split_base.any?
       log("search look, split_base: #{split_base.inspect}")
 
-      if split_base.join("/").length < @music_folder_path.length
-        log("Giving up search because hit music folder length")
+      if "#{split_base.join("/")}/".length < @music_folder_path.length
+        log("Giving up search because #{split_base.join("/").inspect} hit under music folder #{@music_folder_path.inspect}")
         break
       end
 
-      disk_file_sizes_to_path(split_base.join("/"), extension, recursive: true)
+      disk_file_sizes_to_path(split_base.join("/"), extension)
       if path = @disk_file_sizes_to_path[track_size]
         log("found path for #{track_path}: #{path}") 
         return path
