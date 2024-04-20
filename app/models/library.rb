@@ -1,5 +1,6 @@
 require "nokogiri"
 require "cgi"
+require "benchmark"
 
 class Library
   include Logs
@@ -11,23 +12,34 @@ class Library
   attr_accessor :tracks, :playlists, :tracks_by_size, :music_folder
 
   def initialize(xml_path = "Library.xml")
-    @disk_file_sizes_to_path = {}
-    log("Loading #{xml_path}...")
-    @doc = File.open(xml_path) { |f| Nokogiri::XML(f) };
-    log("Done")
-    @music_folder = @doc.xpath('/plist/dict/key[text()="Music Folder"]').first.next_element.text
-    @music_folder_path = unescape_xml(strip_url_file_path_starting(@music_folder))
-    set_progress_total
-    load_tracks
-    load_playlists
-    log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
-    progress_complete
+    time = Benchmark.measure do
+      @disk_file_sizes_to_path = {}
+      log("Loading #{xml_path}...")
+      @doc = File.open(xml_path) { |f| Nokogiri::XML(f) };
+      log("Done")
+      @music_folder = @doc.xpath('/plist/dict/key[text()="Music Folder"]').first.next_element.text
+      @music_folder_path = unescape_xml(strip_url_file_path_starting(@music_folder))
+      glob_dir_files(@music_folder_path)
+      set_progress_total
+      load_tracks
+      verify_tracks
+      load_playlists
+      log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
+      progress_complete
+    end
+    puts time.real
+  end
+
+  def glob_dir_files(dir)
+    dir.gsub!(/\/$/, "")
+    @files_in_music_folder ||= {}
+    @files_in_music_folder.merge!(Dir.glob("#{dir}/**/*").collect{ |p| [p, true] }.to_h)
   end
 
   def set_progress_total
     tracks_count = @doc.xpath('/plist/dict/key[text()="Tracks"]').first.next_element.search("> key").count
     playlists_count = @doc.xpath('/plist/dict/key[text()="Playlists"]').first.next_element.xpath("dict").count
-    set_progress_max(tracks_count + playlists_count)
+    set_progress_max(tracks_count * 2 + playlists_count)
   end
 
   def unescape_xml(s)
@@ -52,6 +64,7 @@ class Library
 
     glob_path = "#{dir}/**/*.#{extension}"
     log("globbing #{glob_path}")
+
     Dir.glob(glob_path).each do |path|
       unless File.directory?(path)
         log("@disk_file_sizes_to_path[#{File.size(path)}] = #{path.inspect}")
@@ -104,6 +117,40 @@ class Library
     s.gsub(/^file:\/\/(localhost\/)?/, "")
   end
 
+  def track_file_exists?(location)
+    return true if @files_in_music_folder[location]
+
+    3.times do
+      if File.directory?(parent = File.dirname(location))
+        glob_dir_files(parent)
+        location = parent
+      end
+    end
+
+    return true if @files_in_music_folder[location]
+
+    File.exists?(location)
+  end
+
+  def verify_tracks
+    @tracks.each do |track_id, track|
+      progress_step
+
+      location = track[:location]
+
+      unless track_file_exists?(location)
+        new_location = find_track_file_by_size(location, size) 
+        location = new_location if new_location
+      end
+
+      if location.nil? || !track_file_exists?(location)
+        msg = "Error loading library: File #{location.inspect} does not exist, and can't find it by a file size match search."
+        set_main_status(msg)
+        raise(msg)
+      end
+    end
+  end
+
   def load_tracks
     key = nil
     @tracks = {}
@@ -145,18 +192,7 @@ class Library
         # try to get a proper file path that will actually exist
         location = strip_url_file_path_starting(location)
 
-        unless File.exists?(location)
-          new_location = find_track_file_by_size(location, size) 
-          location = new_location if new_location
-        end
-          
-        if location.nil? || !File.exists?(location)
-          msg = "Error loading library: File #{location.inspect} does not exist, and can't find it by a file size match search."
-          set_main_status(msg)
-          raise(msg)
-        end
-
-        log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
+        #log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
 
         byebug if device_location.start_with?("file:")
         @tracks[track_id] = { id: track_id, name: name, size: size, location: location, device_location: device_location }
