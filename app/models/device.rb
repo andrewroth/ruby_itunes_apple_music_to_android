@@ -313,7 +313,6 @@ class Device
         @folder_cache.update_cache(File.dirname(dest), false)
         @folder_cache.write_cache
       end
-      puts("STEP")
     end
 
     update_cache_key
