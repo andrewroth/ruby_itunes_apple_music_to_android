@@ -9,3 +9,4 @@ settings.yml
 .byebug_history
 .tool-versions
 .DS_Store
+out.log

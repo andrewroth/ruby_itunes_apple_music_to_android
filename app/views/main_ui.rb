@@ -34,6 +34,8 @@ class MainUi
     puts "save here"
     puts @library_path.get
 
+    library_path_before = ::Settings.instance.values[:library_path]
+
     ::Settings.instance.values = {
       library_path: @library_path.get,
       ftp_ip: @ftp_ip.get,
@@ -43,7 +45,7 @@ class MainUi
       ftp_path: @ftp_path.get
     }
 
-    check_load_library
+    check_load_library if library_path_before != @library_path.get
   end
 
   def check_load_library
