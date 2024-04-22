@@ -1,4 +1,5 @@
 require "tk"
+require "tkextlib/tile"
 
 class MainUi
   include Singleton
@@ -133,23 +134,56 @@ class MainUi
 
     root = TkRoot.new
     root.title = "FTP iTunes/Apple Music to Android Copy"
-    root.geometry("1000x600")
+    root.geometry("1000x800")
 
     root.bind_all("MouseWheel", proc { |event|
       #puts("Mouse event #{event.inspect} #{-event.wheel_delta/scroll_scale} #{$scroll&.get}");
       $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
     }) # $scroll&.set(120,140); $scroll&.assign})
 
-    base_frame = root
-
-    Ttk::Label.new(base_frame) {
+    @status_label = Ttk::Label.new(root) {
       wraplength 990
       justify :left
       text Tk::UTF8_String.new(MainUi.intro_text)
       #width 100
     }.pack(side: :top, fill: :x)
 
-    Ttk::Frame.new(base_frame) do |frame|
+=begin
+    # this one (or similar to it) was causing some crashes on a macbook air
+    @status_label = Ttk::Label.new(frame) {
+      justify :left
+      wraplength 980
+      text Tk::UTF8_String.new("Status: ")
+      grid column: 0, row: 2, columnspan: 2
+      grid_configure sticky: "ews", padx: [20, 20]
+    }
+=end
+
+    n = Tk::Tile::Notebook.new(root) do
+      height 750
+      place('height' => 700, 'width' => 1000, 'x' => 0, 'y' => 50)
+    end
+
+    frame_main = TkFrame.new(n)
+    frame_log = TkFrame.new(n)
+    frame_about = TkFrame.new(n)
+
+    n.add frame_main, text: "Main"
+
+    n.add frame_log, text: "Log"
+
+    n.add frame_about, text: "About"
+    Ttk::Label.new(frame_about) {
+      wraplength 990
+      justify :left
+      text Tk::UTF8_String.new(MainUi.intro_text)
+      #width 100
+    }.pack(side: :top, fill: :x)
+
+
+    base_frame = frame_main
+
+    Ttk::Frame.new(root) do |frame|
       sep = Ttk::Separator.new(frame)
       Tk.grid(sep, columnspan: 4, row: 0, sticky: "ew", pady: 2)
       TkGrid('x', Ttk::Button.new(frame, text: "Quit", compound: :left, command: -> { root.destroy; exit(0) }), padx: 4, pady: 4)
@@ -245,9 +279,9 @@ class MainUi
       grid column: 1, row: 2
     }
 
-    build_table(root)
+    build_table(base_frame)
 
-    frame = TkFrame.new(root).pack(side: :bottom, fill: :x, expand: false)
+    frame = TkFrame.new(base_frame).pack(side: :bottom, fill: :x, expand: false)
 		#frame.background "blue"
 
     frame_scan = TkFrame.new(frame)
@@ -312,6 +346,7 @@ class MainUi
       grid_configure sticky: "ws", padx: [20, 0]
     }
 
+=begin
     @status_label = Ttk::Label.new(frame) {
       justify :left
       wraplength 980
@@ -319,6 +354,8 @@ class MainUi
       grid column: 0, row: 2, columnspan: 2
       grid_configure sticky: "ews", padx: [20, 20]
     }
+=end
+
 		frame.grid_columnconfigure(0, weight: 1)
 
     @progress = Ttk::Progressbar.new(frame, mode: :determinate) {
@@ -430,8 +467,9 @@ class MainUi
 
   def self.intro_text
     <<~EOS
-      Copyright Andrew Roth 2024, andrewroth@gmail.com, released under LGPL license \
-      http://github.com/andrewroth/rb_apple_music_to_device \
+      Copyright Andrew Roth 2024, andrewroth@gmail.com, released under LGPL license
+
+      http://github.com/andrewroth/ruby_itunes_apple_music_to_android
 
       This program is for copying iTunes or Apple Music songs and playlists to an android \
       phone or tablet. Before starting, you will have to go in to Tunes or \
