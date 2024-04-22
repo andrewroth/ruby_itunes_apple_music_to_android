@@ -496,8 +496,9 @@ class MainUi
       directory as this program.
 
       FTP is used to transfer the playlists and music files to your device. \
-      You'll have to run an FTP server on your device. I suggest "File Manager +", it's \
-      free and works well. Use "Access from network" in its home screen to run the FTP server.
+      You'll have to run an FTP server on your device. I suggest "File Manager Plus", it's \
+      free and works well. Use "Access from network" in its home screen to run the FTP server. \
+      The url in File Manager Plus is in the format ftp://<ip>:<port>.
     EOS
   end
 end
