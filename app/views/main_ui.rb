@@ -6,7 +6,7 @@ class MainUi
   include HasStatus
   include Logs
 
-  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button
+  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label
 
   def window_name
     "main window"
@@ -141,12 +141,14 @@ class MainUi
       $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
     }) # $scroll&.set(120,140); $scroll&.assign})
 
+=begin
     @status_label = Ttk::Label.new(root) {
       wraplength 990
       justify :left
       text Tk::UTF8_String.new(MainUi.intro_text)
       #width 100
     }.pack(side: :top, fill: :x)
+=end
 
 =begin
     # this one (or similar to it) was causing some crashes on a macbook air
@@ -160,8 +162,8 @@ class MainUi
 =end
 
     n = Tk::Tile::Notebook.new(root) do
-      height 750
-      place('height' => 700, 'width' => 1000, 'x' => 0, 'y' => 50)
+      height 675
+      place('height' => 675, 'width' => 1000, 'x' => 0, 'y' => 0)
     end
 
     frame_main = TkFrame.new(n)
@@ -186,8 +188,27 @@ class MainUi
     Ttk::Frame.new(root) do |frame|
       sep = Ttk::Separator.new(frame)
       Tk.grid(sep, columnspan: 4, row: 0, sticky: "ew", pady: 2)
-      TkGrid('x', Ttk::Button.new(frame, text: "Quit", compound: :left, command: -> { root.destroy; exit(0) }), padx: 4, pady: 4)
+
+      instance.status_label = Ttk::Label.new(frame) {
+        wraplength 990
+        justify :left
+        text Tk::UTF8_String.new(" ")
+        #width 100
+      }
+      Tk.grid(instance.status_label, columnspan: 4, row: 1, sticky: "ew", pady: 2, padx: [20, 20])
+
+      instance.progress = Ttk::Progressbar.new(frame, mode: :determinate) {
+        grid column: 0, row: 3, columnspan: 2
+        grid_configure sticky: "ews", padx: [20, 20]
+      }
+      Tk.grid(instance.progress, columnspan: 4, row: 2, sticky: "ew", pady: 2)
+
+      sep = Ttk::Separator.new(frame)
+      Tk.grid(sep, columnspan: 4, row: 3, sticky: "ew", pady: 2)
+
+      TkGrid('x', Ttk::Button.new(frame, text: "Quit", compound: :left, command: -> { root.destroy; exit(0) }), padx: 4, pady: 4, row: 4)
       grid_columnconfigure(0, weight: 1)
+
       pack(side: :bottom, fill: :x)
     end
 
@@ -358,10 +379,6 @@ class MainUi
 
 		frame.grid_columnconfigure(0, weight: 1)
 
-    @progress = Ttk::Progressbar.new(frame, mode: :determinate) {
-      grid column: 0, row: 3, columnspan: 2
-      grid_configure sticky: "ews", padx: [20, 20]
-		}
   end
 
   def build_table(root)
