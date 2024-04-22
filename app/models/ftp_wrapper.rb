@@ -1,6 +1,7 @@
 class FtpWrapper
   CONNECTING_MSG = "Connecting..."
   CANT_CONNECT_MSG = "Couldn't connect to FTP server. Check your FTP settings, make sure the FTP is running on the device, check that you're on the same network as the device, and check your firewall."
+  DISCONNECTED_MSG = "Connection lost to FTP server. Retrying in 5 seconds..."
 
 	include Singleton
   include Logs
@@ -58,7 +59,28 @@ class FtpWrapper
 
   def upload_binary(local_path, remote_path = nil)
     log_command("putbinaryfile #{local_path.inspect} #{remote_path.inspect}")
-    run_command { @ftp.putbinaryfile(local_path, remote_path) }
+    begin
+      run_command { @ftp.putbinaryfile(local_path, remote_path) }
+    rescue Net::FTPPermError => e
+      if e.to_s == "550 No such file or directory.\n" # go up and ensure directories exists
+
+        log("#{e.to_s.inspect}, this usually means a parent directory doesn't exist...")
+        dirs = File.dirname(remote_path).split("/")
+        path = ""
+        dirs.each do |dir|
+          path = File.join(path, dir)
+          log("trying to create #{path}")
+          # try our best to create all the dirs
+          begin
+            mkdir(path)
+          rescue
+          end
+          sleep 1
+        end
+
+        retry
+      end
+    end
   end
 
   def download_text(path)
@@ -84,9 +106,19 @@ class FtpWrapper
   def run_command
     begin
       yield
-    rescue Errno::ECONNRESET
-      reconnect!
+    rescue Errno::ECONNRESET, Errno::EPIPE
+      set_statuses(DISCONNECTED_MSG)
+      sleep 5
+      begin
+        reconnect!
+      rescue Net::OpenTimeout
+      end
+
       retry
+    rescue Exception => e
+      log(e.class.name)
+      log(e.to_s)
+      raise
     end
   end
 

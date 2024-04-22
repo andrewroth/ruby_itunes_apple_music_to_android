@@ -22,7 +22,7 @@ class Library
       glob_dir_files(@music_folder_path)
       set_progress_total
       load_tracks
-      verify_tracks
+      #verify_tracks
       load_playlists
       log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
       progress_complete
@@ -39,7 +39,7 @@ class Library
   def set_progress_total
     tracks_count = @doc.xpath('/plist/dict/key[text()="Tracks"]').first.next_element.search("> key").count
     playlists_count = @doc.xpath('/plist/dict/key[text()="Playlists"]').first.next_element.xpath("dict").count
-    set_progress_max(tracks_count * 2 + playlists_count)
+    set_progress_max(tracks_count + playlists_count)
   end
 
   def unescape_xml(s)
@@ -80,7 +80,7 @@ class Library
   # The more nested the path the less files to look through to match by size, but the special character might be in the
   # nested directory.
   def find_track_file_by_size(track_path, track_size)
-    log("enter find_track_file_by_size(track_path: #{track_path.inspect}, track_size: #{track_size}")
+    log("enter find_track_file_by_size(track_path: #{track_path.inspect}, track_size: #{track_size})")
     base = File.dirname(track_path)
     extension = track_path.split(".").last
 
@@ -92,11 +92,12 @@ class Library
 
     # look in current path dir then go up one dir, keep trying unil music_folder
     split_base = base.split("/")
+    i = 0
     while split_base.any?
       log("search look, split_base: #{split_base.inspect}")
 
-      if "#{split_base.join("/")}/".length < @music_folder_path.length
-        log("Giving up search because #{split_base.join("/").inspect} hit under music folder #{@music_folder_path.inspect}")
+      if ((i += 1) == 3) && "#{split_base.join("/")}/".length < @music_folder_path.length
+        log("Giving up search because searched at least 3 directories up (if possible), and #{split_base.join("/").inspect} hit under music folder #{@music_folder_path.inspect}")
         break
       end
 
@@ -120,23 +121,30 @@ class Library
   def track_file_exists?(location)
     return true if @files_in_music_folder[location]
 
+    original_location = location
+
     3.times do
       if File.directory?(parent = File.dirname(location))
         glob_dir_files(parent)
+        return true if @files_in_music_folder[original_location]
         location = parent
       end
     end
 
-    return true if @files_in_music_folder[location]
+    return true if @files_in_music_folder[original_location]
 
-    File.exists?(location)
+    File.exists?(original_location)
   end
 
-  def verify_tracks
-    @tracks.each do |track_id, track|
-      progress_step
+  def verify_tracks(track_ids = nil)
+    track_ids ||= @tracks.keys
+
+    track_ids.each do |track_id|
+      track = @tracks[track_id]
+      #progress_step
 
       location = track[:location]
+      size = track[:size]
 
       unless track_file_exists?(location)
         new_location = find_track_file_by_size(location, size) 
@@ -144,7 +152,7 @@ class Library
       end
 
       if location.nil? || !track_file_exists?(location)
-        msg = "Error loading library: File #{location.inspect} does not exist, and can't find it by a file size match search."
+        msg = "Error: Track file #{location.inspect} does not exist, and can't find it by a file size match search."
         set_main_status(msg)
         raise(msg)
       end

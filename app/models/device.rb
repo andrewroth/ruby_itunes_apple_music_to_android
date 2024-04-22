@@ -9,7 +9,7 @@ class Device
   FOLDER_CACHE_PATH = "cache.yml"
   DEVICE_PLAYLISTS_COPY = "./device_playlist_copy"
 
-  attr_accessor :ftp, :cache, :folder_cache
+  attr_accessor :ftp, :folder_cache
 
   # cache = { path: <ls results> }
 
@@ -44,7 +44,7 @@ class Device
     def [](path)
       path = path.chop if path.end_with?("/")
       @cache ||= {}
-      @cache[path] ||= []
+      @cache[path]
     end
 
     def []=(path, val)
@@ -114,6 +114,7 @@ class Device
             self[path][cached_entry_index] = entry
           else
             log("new entry")
+            self[path] ||= []
             self[path].unshift(entry)
           end
         end
@@ -221,15 +222,15 @@ class Device
 
   def upload_playlists(library)
     ftp.connect
+    progress_clear
 
     # set the progress total
     track_ids = library.playlists.find_all { |pl| pl[:checked] }.collect{ |pl| pl[:track_ids] }.flatten.uniq
     track_ids.reject! { |track_id| library.tracks[track_id][:on_device] }
-    max_progress = track_ids.count + library.playlists.count { |pl| pl[:checked] }
+    max_progress = track_ids.count + library.playlists.count { |pl| pl[:checked] } + 1
     puts("Max progress: #{max_progress}")
     set_progress_max(max_progress)
     
-    i = 0
     library.playlists.each do |playlist|
       next unless playlist[:checked]
 
@@ -247,7 +248,10 @@ class Device
       progress_step
     end
 
-    track_ids.each do |track_id|
+    library.verify_tracks(track_ids)
+    progress_step
+
+    track_ids.each_with_index do |track_id, i|
       track = library.tracks[track_id]
 
       basename = File.basename(track[:name])
@@ -259,21 +263,20 @@ class Device
       else
         #dest = File.join(Settings.instance.values[:ftp_path], track[:device_location])
         dest = track[:device_location]
-        set_progress_status("Copying #{track[:location].inspect} -> #{dest.inspect}")
+        set_progress_status("Copying #{track[:location].inspect} -> #{dest.inspect}", i: i + 1, max: track_ids.length)
 
         progress_step
         log("[#{basename}] -> Make directory and copy #{track[:device_location].inspect}")
 
         base = Settings.instance.values[:ftp_path]
 
-        File.dirname(track[:device_location]).split("/").each do |dir|
-          #byebug
+        File.dirname(track[:device_location][base.length..]).split("/").each do |dir|
           path = File.join(base, dir)
           log("checking cache for #{path}")
           if @folder_cache[path]
-            log("Found cache existing for #{path}, no need to mkdir it")
+            log("Found cache #{@folder_cache[path].inspect} existing for #{path}, no need to mkdir it")
           else
-            log("mkdir #{dir.inspect}")
+            log("mkdir #{path.inspect}")
             ftp.mkdir(path)
 
             log("update cache for #{dir.inspect}")

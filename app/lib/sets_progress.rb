@@ -21,8 +21,14 @@ module SetsProgress
     @max ||= progress_max.to_f
   end
 
-  def set_progress_status(s)
-    set_main_status("[#{progress_value}/#{progress_max}, #{((progress_value / progress_max_f) * 100).round(1)}%] #{s}")
+  def set_progress_status(s, i: progress_value, max: nil)
+    if max
+      max_f = max.to_f
+    else
+      max = progress_max
+      max_f = progress_max_f
+    end
+    set_main_status("[#{i}/#{max}, #{((i / max_f) * 100).round(1)}%] #{s}")
   end
 
   def progress_clear
