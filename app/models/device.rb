@@ -18,6 +18,14 @@ class Device
     include SetsStatus
     include SetsProgress
 
+    Entry = Struct.new(:basename, :type, :mtime, :filesize) do
+      def self.new_from_ftp_entry(entry)
+        Entry.new(entry.basename.force_encoding("utf-8"), entry.type, entry.mtime, entry.filesize)
+      end
+      def file?() type == :file; end
+      def directory?() type == :dir; end
+    end
+
     def ftp
       FtpWrapper.instance
     end
@@ -26,6 +34,11 @@ class Device
       @device = device
       if File.exists?(FOLDER_CACHE_PATH)
         @cache = YAML.send(YAML.respond_to?(:unsafe_load) ? :unsafe_load : :load, File.read(FOLDER_CACHE_PATH))
+        @cache = @cache.collect do |k, v|
+          k.dup.force_encoding("utf-8")
+          v.each { |entry| entry.basename.dup.force_encoding("utf-8") }
+          [k, v]
+        end.to_h
       else
         @cache = {}
       end
@@ -49,13 +62,15 @@ class Device
 
     def []=(path, val)
       path = path.chop if path.end_with?("/")
+      path.force_encoding("utf-8")
+      val = val.collect { |entry| entry.is_a?(Net::FTP::List::Entry) ? Entry.new_from_ftp_entry(entry) : entry }
       @cache[path] = val
       write_cache
       val
     end
 
     def write_cache
-      File.delete(FOLDER_CACHE_PATH) if File.exists?(FOLDER_CACHE_PATH)
+      #File.delete(FOLDER_CACHE_PATH) if File.exists?(FOLDER_CACHE_PATH) # not sure why but this seems necessary
       File.write(FOLDER_CACHE_PATH, YAML.dump(@cache))
     end
 
@@ -90,11 +105,11 @@ class Device
         return
       end
 
-      entries.each do |entry|
-        next unless entry.directory?
+      dirs = entries.find_all(&:directory?)
+      dirs.each_with_index do |entry, i|
 
         if root_folder
-          set_progress_status("Scanning #{entry.name.inspect}")
+          set_progress_status("Scanning #{entry.name.inspect}", i: i, max: dirs.length)
         end
 
         child_path = File.join(path, entry.name)
@@ -124,6 +139,8 @@ class Device
           puts("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
         end
       end
+
+      self[path] = entries
     end
   end
 
@@ -274,7 +291,8 @@ class Device
           path = File.join(base, dir)
           log("checking cache for #{path}")
           if @folder_cache[path]
-            log("Found cache #{@folder_cache[path].inspect} existing for #{path}, no need to mkdir it")
+            #log("Found cache #{@folder_cache[path].inspect} existing for #{path}, no need to mkdir it")
+            log("Found cache existing for #{path}, no need to mkdir it")
           else
             log("mkdir #{path.inspect}")
             ftp.mkdir(path)

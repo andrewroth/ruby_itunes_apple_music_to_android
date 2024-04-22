@@ -224,7 +224,13 @@ class Library
       entries.each do |entry|
         next unless entry.file?
 
-        full_path = File.join(path, entry.basename)
+        #begin
+          #full_path = File.join(path.force_encoding("utf-8"), entry.basename.force_encoding("utf-8"))
+          full_path = File.join(path, entry.basename)
+        #rescue
+          #byebug
+        #end
+
         log("Search for #{entry.filesize} (#{full_path})")
         if tracks = @tracks_by_size[entry.filesize]
           if tracks.length == 1

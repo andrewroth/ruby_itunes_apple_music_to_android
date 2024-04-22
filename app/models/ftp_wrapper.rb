@@ -106,7 +106,7 @@ class FtpWrapper
   def run_command
     begin
       yield
-    rescue Errno::ECONNRESET, Errno::EPIPE
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError
       set_statuses(DISCONNECTED_MSG)
       sleep 5
       begin
