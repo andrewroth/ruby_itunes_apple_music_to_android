@@ -52,6 +52,12 @@ work to get it installed, but it's fairly standard stuff.
 
 If you need help, let me know and I'll try to help and make a wiki entry or something.
 
+Helpful links:
+
+ - This has worked for me on PC: https://sourceforge.net/projects/magicsplat/files/magicsplat-tcl/
+ - This has worked for me on mac: https://platform.activestate.com/danac/ActiveTcl-8.6/distributions?platformID=aa7c0abf-d4a2-5896-8220-41c88b42c6c4
+ - https://tkdocs.com/tutorial/install.html
+
 ## Process
 
 1. On the first run, enter the config options. They will be saved to disk.
