@@ -192,7 +192,7 @@ class Library
         # try to get a proper file path that will actually exist
         location = strip_url_file_path_starting(location)
 
-        #log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
+        log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
 
         byebug if device_location.start_with?("file:")
         @tracks[track_id] = { id: track_id, name: name, size: size, location: location, device_location: device_location }

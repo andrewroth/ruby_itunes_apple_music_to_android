@@ -81,7 +81,7 @@ class Device
       ftp.chdir(path)
 
       entries = ftp.ls_parsed
-      @cache[path] = entries
+      @cache[path] = entries.collect{ |entry| entry[:mtime] }
 
       i = 0
       if recursive
@@ -92,7 +92,11 @@ class Device
             set_progress_status("Scanning #{entry.name.inspect}")
           end
 
-          update_cache(File.join(path, entry.name))
+          # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
+          child_path = File.join(path, entry.name)
+          if @cache[child_path] != entry[:mtime]
+            update_cache()
+          end
 
           if root_folder
             MainUi.instance.progress.value(MainUi.instance.progress.value + 1)

@@ -117,6 +117,14 @@ class MainUi
     end
   end
 
+  def scroll_scale
+    if RUBY_PLATFORM["darwin"]
+      1
+    else
+      120
+    end
+  end
+
   def build_ui
     instance = self
     settings = Settings.instance.values
@@ -125,7 +133,10 @@ class MainUi
     root.title = "FTP iTunes/Apple Music to Android Copy"
     root.geometry("1000x600")
 
-    root.bind_all("MouseWheel", proc { |event| puts("Mouse event #{event.inspect} #{-event.wheel_delta/120} #{$scroll&.get}"); $scroll_target&.yview("scroll", -event.wheel_delta/120, "units")}) # $scroll&.set(120,140); $scroll&.assign })
+    root.bind_all("MouseWheel", proc { |event|
+      #puts("Mouse event #{event.inspect} #{-event.wheel_delta/scroll_scale} #{$scroll&.get}");
+      $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
+    }) # $scroll&.set(120,140); $scroll&.assign})
 
     base_frame = root
 
@@ -362,10 +373,10 @@ class MainUi
     table.bind('Motion', proc{|w, x, y|
       Tk.callback_break if w.selection_include?(TkComm._at(x,y))
       w.selection_clear_all
-      puts "x,y #{x},#{y} #{TkComm._at(x,y).inspect}"
+      #puts "x,y #{x},#{y} #{TkComm._at(x,y).inspect}"
       #w.selection_set(TkComm._at(x,y))
-      puts "#{w}"
-      puts "#{w.width_list}"
+      #puts "#{w}"
+      #puts "#{w.width_list}"
       #w.selection_set(TkComm._at(30,y), TkComm._at(460,y))
       w.selection_set(TkComm._at(5,y), TkComm._at(w.width_list.collect{ |row, width| width }.sum.abs, y))
       Tk.callback_break
@@ -382,8 +393,8 @@ class MainUi
       
       row = rc.split(",")[0]
       idx = "#{row},1"
-      puts idx
-      puts tab[idx]
+      #puts idx
+      #puts tab[idx]
 
       checked = w.tag_include?("left-checked", idx)
       checked ? instance.uncheck_table_row(row) : instance.check_table_row(row)
