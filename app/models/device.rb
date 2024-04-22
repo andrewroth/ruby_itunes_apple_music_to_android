@@ -25,7 +25,7 @@ class Device
     def initialize(device)
       @device = device
       if File.exists?(FOLDER_CACHE_PATH)
-        @cache = YAML.load(File.read(FOLDER_CACHE_PATH)) 
+        @cache = YAML.send(YAML.respond_to?(:unsafe_load) ? :unsafe_load : :load, File.read(FOLDER_CACHE_PATH))
       else
         @cache = {}
       end
@@ -36,6 +36,7 @@ class Device
     end
 
     def empty?
+      @cache ||= {}
       log("returning #{@cache.empty?}")
       @cache.empty?
     end
@@ -43,12 +44,14 @@ class Device
     def [](path)
       path = path.chop if path.end_with?("/")
       @cache ||= {}
-      @cache[path]
+      @cache[path] ||= []
     end
 
     def []=(path, val)
       path = path.chop if path.end_with?("/")
       @cache[path] = val
+      write_cache
+      val
     end
 
     def write_cache
@@ -63,7 +66,6 @@ class Device
 
       # first execution
       if path.nil?
-        @cache = {}
         ftp_path = Settings.instance.values[:ftp_path]
         ftp.connect
         ftp.chdir(ftp_path)
@@ -79,29 +81,46 @@ class Device
       max_progress = ftp.ls_parsed.count(&:directory?) if root_folder
 
       ftp.chdir(path)
-
       entries = ftp.ls_parsed
-      @cache[path] = entries.collect{ |entry| entry[:mtime] }
 
       i = 0
-      if recursive
-        entries.each do |entry|
-          next unless entry.directory?
 
-          if root_folder
-            set_progress_status("Scanning #{entry.name.inspect}")
-          end
+      unless recursive
+        self[path] = entries
+        return
+      end
 
-          # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
-          child_path = File.join(path, entry.name)
-          if @cache[child_path] != entry[:mtime]
-            update_cache()
-          end
+      entries.each do |entry|
+        next unless entry.directory?
 
-          if root_folder
-            MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
-            puts("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
+        if root_folder
+          set_progress_status("Scanning #{entry.name.inspect}")
+        end
+
+        child_path = File.join(path, entry.name)
+
+        # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
+        cached_entry_index = (self[path] || []).index(&:basename)
+        log("found cached entry index #{cached_entry_index}")
+
+        # do the skip if possible
+        if cached_entry_index && self[path][cached_entry_index].mtime == entry.mtime
+          log("mtime matches for #{child_path}, skipping!")
+        else
+          update_cache(child_path)
+          # by this point the index might have changed because of update_cache updating the ??!?!?
+          if cached_entry_index
+            log("update entry")
+            self[path][cached_entry_index] = entry
+          else
+            log("new entry")
+            self[path].unshift(entry)
           end
+        end
+
+        if root_folder
+          MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
+          puts("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
         end
       end
     end
@@ -122,6 +141,7 @@ class Device
     if @folder_cache&.empty? || !File.exists?(FOLDER_CACHE_PATH) || !File.exists?(CACHE_KEY_PATH) || File.read(CACHE_KEY_PATH) != cache_key
       log("Difference detected, rebuilding folder cache")
       puts("DIFFERENCE!")
+      delete_cache_key
       @folder_cache.update_cache
       update_cache_key
       set_main_status("Scanning Playlists...")
@@ -153,6 +173,9 @@ class Device
     File.write(CACHE_KEY_PATH, cache_key)
   end
 
+  def delete_cache_key
+    File.delete(CACHE_KEY_PATH) if File.exists?(CACHE_KEY_PATH)
+  end
 
   def download_playlists
     ftp.connect
@@ -234,7 +257,8 @@ class Device
       if track[:on_device]
         log("[#{basename}] -> No action required, it's already on the device (#{track[:device_location].inspect})")
       else
-        dest = File.join(Settings.instance.values[:ftp_path], track[:device_location])
+        #dest = File.join(Settings.instance.values[:ftp_path], track[:device_location])
+        dest = track[:device_location]
         set_progress_status("Copying #{track[:location].inspect} -> #{dest.inspect}")
 
         progress_step

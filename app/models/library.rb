@@ -195,6 +195,8 @@ class Library
         log("track file location: #{location.inspect}, device_location: #{device_location.inspect}")
 
         byebug if device_location.start_with?("file:")
+        device_location = File.join(Settings.instance.values[:ftp_path], device_location)
+
         @tracks[track_id] = { id: track_id, name: name, size: size, location: location, device_location: device_location }
 
         progress_step
@@ -261,6 +263,7 @@ class Library
   end
 
   def generate_playlists
+    set_main_status("Generating playlists...")
     Dir.mkdir(LOCAL_PLAYLISTS_DIR) unless Dir.exists?(LOCAL_PLAYLISTS_DIR)
     playlists.each do |playlist|
       log playlist[:name]
@@ -280,5 +283,6 @@ class Library
 
       playlist[:path] = playlist_file
     end
+    set_main_status("")
   end
 end
