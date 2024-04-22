@@ -486,7 +486,7 @@ class MainUi
 
   def self.intro_text
     <<~EOS
-      Copyright Andrew Roth 2024, andrewroth@gmail.com, released under LGPL license
+      Copyright Andrew Roth 2024, andrewroth@gmail.com, released under GPL license
 
       http://github.com/andrewroth/ruby_itunes_apple_music_to_android
 
