@@ -176,11 +176,11 @@ class MainUi
 
     n.add frame_about, text: "About"
     Ttk::Label.new(frame_about) {
-      wraplength 990
-      justify :left
+      wraplength 900
+      #justify :left
       text Tk::UTF8_String.new(MainUi.intro_text)
       #width 100
-    }.pack(side: :top, fill: :x)
+    }.pack(pady: 10) #(side: :top, fill: :both)
 
 
     base_frame = frame_main
