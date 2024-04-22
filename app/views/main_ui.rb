@@ -6,7 +6,7 @@ class MainUi
   include HasStatus
   include Logs
 
-  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label
+  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label, :scan_device_button, :scan_note
 
   def window_name
     "main window"
@@ -32,8 +32,7 @@ class MainUi
   end
 
   def save_settings
-    puts "save here"
-    puts @library_path.get
+    log "save here"
 
     library_path_before = ::Settings.instance.values[:library_path]
 
@@ -50,14 +49,13 @@ class MainUi
   end
 
   def check_load_library
-    puts("check_load_library #{::Settings.instance.values[:library_path]}")
+    log("check_load_library #{::Settings.instance.values[:library_path]}")
     load_library if ::Settings.instance.values[:library_path] && File.exists?(::Settings.instance.values[:library_path])
   end
 
   def load_library
     Thread.new {
       #sleep 0.5
-      puts("Loading")
       set_status("Loading library...")
       @library = Library.new(::Settings.instance.values[:library_path])
       set_status("")
@@ -74,6 +72,7 @@ class MainUi
     end
 
     @library.playlists.each_with_index do |playlist, i|
+      set_status("Building table row for #{playlist[:name]}")
       @playlist_table_var[i,1] = playlist[:name]
       @playlist_table_var[i,2] = playlist[:track_ids].length
       if device_scanned
@@ -91,7 +90,7 @@ class MainUi
     @table.tag_cell("checked", "#{row},2")
     @table.tag_cell("checked", "#{row},3")
     @table.tag_cell("checked", "#{row},4")
-    puts @playlist_table_var["#{row},1"]
+    log @playlist_table_var["#{row},1"]
     pl = @library.playlists.detect{ |pl| pl[:name] == @playlist_table_var["#{row},1"] }
     raise("can't find pl for row #{row}") unless pl
     pl[:checked] = true
@@ -324,6 +323,7 @@ class MainUi
             instance.library.match_device_tracks(instance.device.folder_cache)
             instance.populate_playlist_table(device_scanned: true)
             msg = "Scan complete, ready to copy."
+            instance.scan_note.configure(text: Tk::UTF8_String.new(""))
             MainUi.instance.set_status(msg)
             MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
             instance.copy_button.state("normal")
@@ -342,7 +342,7 @@ class MainUi
       grid_configure sticky: "ws", padx: [20, 0]
     }
 
-    Ttk::Label.new(frame_scan) {
+    @scan_note = Ttk::Label.new(frame_scan) {
       justify :left
       wraplength 800
       text Tk::UTF8_String.new("Note: You must scan the device before starting the copy.")
@@ -356,11 +356,13 @@ class MainUi
       command proc {
         Thread.new {
           msg = "Copying..."
+          instance.scan_device_button.state("disabled")
           MainUi.instance.set_status(msg)
           MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
           instance.log("Copy to Device")
           instance.library.generate_playlists
           instance.device.upload_playlists(instance.library)
+          instance.scan_device_button.state("enabled")
         }
       }
       grid column: 0, row: 1
@@ -465,7 +467,7 @@ class MainUi
 
     0.step(rows) {|i|
       0.step(cols){|j|
-        puts("tab #{i},#{j}")
+        #puts("tab #{i},#{j}")
         #tab[i,j] = "#{i},#{j}"
         table.tag_cell('OFF', "#{i},#{j}")
       }

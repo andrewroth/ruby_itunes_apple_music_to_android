@@ -115,8 +115,9 @@ class Device
         child_path = File.join(path, entry.name)
 
         # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
-        cached_entry_index = (self[path] || []).index(&:basename)
-        log("found cached entry index #{cached_entry_index}")
+        cached_entry_index = (self[path] || []).index { |child_entry| child_entry.basename == entry.basename }
+        log("path: #{path}, child_path: #{child_path}")
+        log("found cached entry index #{cached_entry_index}. Compare mtimes #{self[path][cached_entry_index].mtime if cached_entry_index} (cache) <=> #{entry.mtime} (entry)")
 
         # do the skip if possible
         if cached_entry_index && self[path][cached_entry_index].mtime == entry.mtime
@@ -136,7 +137,7 @@ class Device
 
         if root_folder
           MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
-          puts("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
+          log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
         end
       end
 
@@ -158,7 +159,6 @@ class Device
     set_main_status("Scanning...")
     if @folder_cache&.empty? || !File.exists?(FOLDER_CACHE_PATH) || !File.exists?(CACHE_KEY_PATH) || File.read(CACHE_KEY_PATH) != cache_key
       log("Difference detected, rebuilding folder cache")
-      puts("DIFFERENCE!")
       delete_cache_key
       @folder_cache.update_cache
       update_cache_key
@@ -204,18 +204,21 @@ class Device
     original_path = Dir.pwd
     Dir.chdir(DEVICE_PLAYLISTS_COPY)
 
-    Dir.glob("*.m3u").each do |f|
-      File.delete(f)
-    end
+    #Dir.glob("*.m3u").each do |f|
+    #  File.delete(f)
+    #end
 
     ftp.ls_parsed do |parsed|
       next unless parsed.name.end_with?(".m3u")
       set_main_status("Scanning Playlists... #{parsed.name}")
       progress_step
-      path = File.join(DEVICE_PLAYLISTS_COPY, parsed.name)
-      if File.exists?(path) && File.size(path) == parsed.filesize
-        puts("Already have #{parsed.name} locally and size matches, skipping download.")
+      log("Looking for existing playlist: #{parsed.name}, #{File.exists?(parsed.name)}")
+      if File.exists?(parsed.name) && File.size(parsed.name) == parsed.filesize
+        log("Already have #{parsed.name} locally and size matches, skipping download.")
       else 
+        if File.exists?(parsed.name)
+          log("No match on file sizes - compare playlist size #{parsed.name} locally #{File.size(parsed.name)} vs device #{parsed.filesize}")
+        end
         ftp.download_text(parsed.name)
       end
     end
@@ -245,7 +248,7 @@ class Device
     track_ids = library.playlists.find_all { |pl| pl[:checked] }.collect{ |pl| pl[:track_ids] }.flatten.uniq
     track_ids.reject! { |track_id| library.tracks[track_id][:on_device] }
     max_progress = track_ids.count + library.playlists.count { |pl| pl[:checked] } + 1
-    puts("Max progress: #{max_progress}")
+    log("Max progress: #{max_progress}")
     set_progress_max(max_progress)
     
     library.playlists.each do |playlist|
