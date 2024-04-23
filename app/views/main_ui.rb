@@ -42,7 +42,8 @@ class MainUi
       ftp_port: @ftp_port.get,
       ftp_username: @ftp_username.get,
       ftp_password: @ftp_password.get,
-      ftp_path: @ftp_path.get
+      ftp_path: @ftp_path.get,
+      checked_playlist_ids: @checked_playlist_ids
     }
 
     check_load_library if library_path_before != @library_path.get
@@ -84,6 +85,11 @@ class MainUi
     end
   end
 
+  def save_checked_rows
+    @checked_playlist_ids = @library.playlists.find_all { |pl| pl[:checked] }.collect{ |pl| pl[:playlist_id] }
+    save_settings
+  end
+
   def check_table_row(row)
     @table.tag_cell("checked", "#{row},0")
     @table.tag_cell("left-checked", "#{row},1")
@@ -95,6 +101,7 @@ class MainUi
     raise("can't find pl for row #{row}") unless pl
     pl[:checked] = true
     @playlist_table_var[row,0] = "COPY"
+    save_checked_rows
   end
 
   def uncheck_table_row(row)
@@ -107,6 +114,7 @@ class MainUi
     raise("can't find pl for row #{row}") unless pl
     pl[:checked] = false
     @playlist_table_var[row,0] = ""
+    save_checked_rows
   end
 
   class SettingsEntry < Ttk::Entry

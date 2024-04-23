@@ -271,7 +271,7 @@ class Library
         # a playlist without track ids is not something we can copy to the device
         next
       end
-      @playlists << { name: name, playlist_id: playlist_id, track_ids: track_ids }
+      @playlists << { name: name, playlist_id: playlist_id, track_ids: track_ids, checked: (Settings.instance.values[:checked_playlist_ids] || []).include?(playlist_id) }
       progress_step
     end 
   end
