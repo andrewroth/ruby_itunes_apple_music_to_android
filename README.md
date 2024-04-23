@@ -13,7 +13,7 @@ I've tested it on Mac and PC, but it should run in linux as well.
 
 This is alpha software; I haven't tested it on a very large iTunes library with thousands of songs yet. Still, I think it may already work well enough to be useful.
 
-![image](https://github.com/andrewroth/ruby_itunes_apple_music_to_android/assets/13490/cb9522c8-b998-417e-82fa-0622191300fd)
+![image](https://github.com/andrewroth/ruby_itunes_apple_music_to_android/assets/13490/e2ad58e4-1582-4dab-8476-1b3010019998)
 
 ## Exporting from iTunes/Apple Music
 
