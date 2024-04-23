@@ -458,6 +458,7 @@ class MainUi
       #select_path_list_path("#{@ftp_path.text}#{tab[rc]}/")
       
       row = rc.split(",")[0]
+      return if row == "-1"
       idx = "#{row},1"
       #puts idx
       #puts tab[idx]
