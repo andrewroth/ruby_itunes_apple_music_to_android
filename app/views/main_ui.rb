@@ -78,7 +78,7 @@ class MainUi
       @playlist_table_var[i,2] = playlist[:track_ids].length
       if device_scanned
         @playlist_table_var[i,3] = playlist[:device_tracks_count].to_i
-        @playlist_table_var[i,4] = playlist[:track_ids].count{ |track_id| !@library.tracks[track_id][:on_device] }
+        @playlist_table_var[i,4] = playlist[:track_ids].count{ |track_id| !@library.tracks[track_id].on_device }
       end
 
       playlist[:checked] ? check_table_row(i) : uncheck_table_row(i)
@@ -369,7 +369,7 @@ class MainUi
           MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
           instance.log("Copy to Device")
           instance.library.generate_playlists
-          instance.device.upload_playlists(instance.library)
+          instance.device.copy_to_device(instance.library)
           instance.scan_device_button.state("enabled")
         }
       }

@@ -149,6 +149,10 @@ class Device
     @folder_cache = FolderCache.new(self)
   end
 
+  def ftp
+    FtpWrapper.instance
+  end
+
   def update_folder_cache
     initialize
     @folder_cache.update_cache
@@ -227,92 +231,46 @@ class Device
   end
 
   def update_library_playlists_with_device_info(library)
-    library.playlists.each do |playlist|
-      playlist_filename = File.join(DEVICE_PLAYLISTS_COPY, playlist[:name] + ".m3u")
-      if File.exists?(playlist_filename)
-        tracks_count = File.read(playlist_filename).split("\n").count{ |line| line != "#EXTM3U" && line != "" }
-        playlist[:device_tracks_count] = tracks_count
-      end
-    end
+    library.playlists.each(&:update_with_device_data)
   end
 
-  def ftp
-    FtpWrapper.instance
-  end
-
-  def upload_playlists(library)
-    ftp.connect
-    progress_clear
-
+  def copy_to_device(library)
     # set the progress total
-    track_ids = library.playlists.find_all { |pl| pl[:checked] }.collect{ |pl| pl[:track_ids] }.flatten.uniq
-    track_ids.reject! { |track_id| library.tracks[track_id][:on_device] }
-    max_progress = track_ids.count + library.playlists.count { |pl| pl[:checked] } + 1
+    track_ids = library.playlists.find_all(&:checked).collect(&:track_ids).flatten.uniq
+    track_ids.reject! { |track_id| library.tracks[track_id].on_device }
+
+    progress_clear
+    max_progress = track_ids.count + library.playlists.count(&:checked) + 1
     log("Max progress: #{max_progress}")
     set_progress_max(max_progress)
     
+    # verify track file sources exist
+    library.verify_tracks(track_ids)
+    progress_step
+
+    ftp.connect
+
+    # copy playlists
     library.playlists.each do |playlist|
-      next unless playlist[:checked]
+      next unless playlist.checked
 
-      #@ftp.gettextfile(parsed.name)
-
-      log("Copy playlist file")
-
-      #@ftp.puttextfile(playlist[:path])
-      playlist_filename = File.join(Library::LOCAL_PLAYLISTS_DIR, playlist[:name] + ".m3u")
-      set_main_status("Copying playlist #{playlist[:name]}, path: #{playlist_filename}")
+      set_main_status("Copying playlist #{playlist.name}, path: #{playlist.filename}")
       ftp.chdir(Settings.instance.values[:ftp_path])
       ftp.upload_text(playlist_filename)
-      FileUtils.cp(playlist_filename, File.join(DEVICE_PLAYLISTS_COPY, playlist[:name] + ".m3u"))
+      FileUtils.cp(playlist_filename, playlist.local_copy_filename)
 
       progress_step
     end
 
-    library.verify_tracks(track_ids)
-    progress_step
-
+    # copy tracks
     track_ids.each_with_index do |track_id, i|
       track = library.tracks[track_id]
-
-      basename = File.basename(track[:name])
+      set_progress_status("Copying #{track.location.inspect} -> #{track.device_location.inspect}", i: i + 1, max: track_ids.length)
 
       #sleep 0.1
+      track.copy_to_device
 
-      if track[:on_device]
-        log("[#{basename}] -> No action required, it's already on the device (#{track[:device_location].inspect})")
-      else
-        #dest = File.join(Settings.instance.values[:ftp_path], track[:device_location])
-        dest = track[:device_location]
-        set_progress_status("Copying #{track[:location].inspect} -> #{dest.inspect}", i: i + 1, max: track_ids.length)
-
-        progress_step
-        log("[#{basename}] -> Make directory and copy #{track[:device_location].inspect}")
-
-        base = Settings.instance.values[:ftp_path]
-
-        File.dirname(track[:device_location][base.length..]).split("/").each do |dir|
-          path = File.join(base, dir)
-          log("checking cache for #{path}")
-          if @folder_cache[path]
-            #log("Found cache #{@folder_cache[path].inspect} existing for #{path}, no need to mkdir it")
-            log("Found cache existing for #{path}, no need to mkdir it")
-          else
-            log("mkdir #{path.inspect}")
-            ftp.mkdir(path)
-
-            log("update cache for #{dir.inspect}")
-            @folder_cache.update_cache(path, false)
-            @folder_cache.write_cache
-          end
-          base = path
-        end
-
-        log("copy #{track[:location].inspect} to #{dest}")
-        ftp.upload_binary(track[:location], dest)
-
-        @folder_cache.update_cache(File.dirname(dest), false)
-        @folder_cache.write_cache
-      end
+      progress_step
     end
 
     update_cache_key
