@@ -73,46 +73,41 @@ class MainUi
     end
 
     @library.playlists.each_with_index do |playlist, i|
-      set_status("Building table row for #{playlist[:name]}")
-      @playlist_table_var[i,1] = playlist[:name]
-      @playlist_table_var[i,2] = playlist[:track_ids].length
+      set_status("Building table row for #{playlist.name}")
+      @playlist_table_var[i,1] = playlist.name
+      @playlist_table_var[i,2] = playlist.track_ids.length
       if device_scanned
-        @playlist_table_var[i,3] = playlist[:device_tracks_count].to_i
-        @playlist_table_var[i,4] = playlist[:track_ids].count{ |track_id| !@library.tracks[track_id].on_device }
+        @playlist_table_var[i,3] = playlist.device_tracks_count.to_i
+        @playlist_table_var[i,4] = playlist.track_ids.count{ |track_id| !@library.tracks[track_id].on_device }
       end
 
-      playlist[:checked] ? check_table_row(i) : uncheck_table_row(i)
+      playlist.checked ? check_table_row(i) : uncheck_table_row(i)
     end
   end
 
   def save_checked_rows
-    @checked_playlist_ids = @library.playlists.find_all { |pl| pl[:checked] }.collect{ |pl| pl[:playlist_id] }
+    @checked_playlist_ids = @library.playlists.find_all(&:checked).collect(&:playlist_id)
     save_settings
   end
 
   def check_table_row(row)
-    @table.tag_cell("checked", "#{row},0")
-    @table.tag_cell("left-checked", "#{row},1")
-    @table.tag_cell("checked", "#{row},2")
-    @table.tag_cell("checked", "#{row},3")
-    @table.tag_cell("checked", "#{row},4")
-    log @playlist_table_var["#{row},1"]
-    pl = @library.playlists.detect{ |pl| pl[:name] == @playlist_table_var["#{row},1"] }
-    raise("can't find pl for row #{row}") unless pl
-    pl[:checked] = true
-    @playlist_table_var[row,0] = "COPY"
-    save_checked_rows
+    set_table_row_checked(row, true)
   end
 
   def uncheck_table_row(row)
-    @table.tag_cell("not_checked", "#{row},0")
-    @table.tag_cell("left-not_checked", "#{row},1")
-    @table.tag_cell("not_checked", "#{row},2")
-    @table.tag_cell("not_checked", "#{row},3")
-    @table.tag_cell("not_checked", "#{row},4")
-    pl = @library.playlists.detect{ |pl| pl[:name] == @playlist_table_var["#{row},1"] }
+    set_table_row_checked(row, false)
+  end
+
+  def set_table_row_checked(row, checked)
+    prefix = checked ? "" : "not_"
+    @table.tag_cell("#{prefix}checked", "#{row},0")
+    @table.tag_cell("left-#{prefix}checked", "#{row},1")
+    @table.tag_cell("#{prefix}checked", "#{row},2")
+    @table.tag_cell("#{prefix}checked", "#{row},3")
+    @table.tag_cell("#{prefix}checked", "#{row},4")
+    pl = @library.playlists.detect{ |pl| pl.name == @playlist_table_var["#{row},1"] }
     raise("can't find pl for row #{row}") unless pl
-    pl[:checked] = false
+    pl.checked = checked
     @playlist_table_var[row,0] = ""
     save_checked_rows
   end
@@ -128,11 +123,7 @@ class MainUi
   end
 
   def scroll_scale
-    if RUBY_PLATFORM["darwin"]
-      1
-    else
-      120
-    end
+    RUBY_PLATFORM["darwin"] ? 1 : 120
   end
 
   def build_ui

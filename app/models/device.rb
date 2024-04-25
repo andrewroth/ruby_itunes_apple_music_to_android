@@ -254,10 +254,7 @@ class Device
     library.playlists.each do |playlist|
       next unless playlist.checked
 
-      set_main_status("Copying playlist #{playlist.name}, path: #{playlist.filename}")
-      ftp.chdir(Settings.instance.values[:ftp_path])
-      ftp.upload_text(playlist_filename)
-      FileUtils.cp(playlist_filename, playlist.local_copy_filename)
+      playlist.copy_to_device(ftp)
 
       progress_step
     end
@@ -268,7 +265,7 @@ class Device
       set_progress_status("Copying #{track.location.inspect} -> #{track.device_location.inspect}", i: i + 1, max: track_ids.length)
 
       #sleep 0.1
-      track.copy_to_device
+      track.copy_to_device(self)
 
       progress_step
     end

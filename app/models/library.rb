@@ -10,7 +10,7 @@ class Library
 
   LOCAL_PLAYLISTS_DIR = "./playlists_from_library"
 
-  attr_accessor :tracks, :playlists, :tracks_by_size, :music_folder
+  attr_reader :tracks, :playlists, :tracks_by_size, :music_folder, :music_folder_path
 
   def initialize(xml_path = "Library.xml")
     time = Benchmark.measure do
@@ -20,7 +20,7 @@ class Library
       log("Done")
       @music_folder = @doc.xpath('/plist/dict/key[text()="Music Folder"]').first.next_element.text
       @music_folder_path = strip_url_file_path_starting(unescape_xml(@music_folder))
-      glob_dir_files(@music_folder_path)
+      Track.glob_dir_files(@music_folder_path)
       set_progress_total
       load_tracks
       #verify_tracks
@@ -87,23 +87,35 @@ class Library
 
         log("Search for #{entry.filesize} (#{full_path})")
         if tracks = @tracks_by_size[entry.filesize]
+          match = false
+
           if tracks.length == 1
-            log("   -> #{tracks}")
-            @tracks[tracks.first[:id]].device_location = full_path
-            @tracks[tracks.first[:id]].on_device = true
+            match = tracks.first
           elsif tracks.length > 1
-            log("MULTIPLE MATCHES FOR #{File.join(path, entry.basename)}")
-            track = tracks.detect{ |t| File.basename(t.location).gsub("%20", "") }
+            log("MULTIPLE MATCHES FOR #{File.join(path, entry.basename)} (#{entry}): #{tracks}.")
+            log("Using filename match")
+            track = tracks.detect{ |t| File.basename(t.name) == entry.basename }
 
             if track
               log("Found match for #{full_path}: #{tracks}")
-              @tracks[track[:id]].device_location = full_path
-              @tracks[track[:id]].on_device = true
+              match = track
             else
-              raise("Multiple maches for #{entry}")
-              # byebug
-              # still no match
+              log("Can't find a direct file name match, trying match by substring of track names to entry basename")
+              track = tracks.detect{ |t| entry.basename[t.name] }
+
+              if track
+                log("Found match using substirng method: #{tracks}")
+                match = track
+              else
+                raise("multiple matches #{File.join(path, entry.basename)} (#{entry}) but can't determine which one to use.")
+              end
             end
+          end
+
+          if match
+            log("   -> #{tracks}")
+            @tracks[match.id].device_location = full_path
+            @tracks[match.id].on_device = true
           end
         end
       end
@@ -136,22 +148,9 @@ class Library
     Dir.mkdir(LOCAL_PLAYLISTS_DIR) unless Dir.exists?(LOCAL_PLAYLISTS_DIR)
 
     playlists.each do |playlist|
-      # TODO here below can be moved to playlist class
-      log playlist.name
-
-      playlist_file = "#{LOCAL_PLAYLISTS_DIR}/#{playlist.name}.m3u"
-
-      File.delete(playlist_file) if File.exists?(playlist_file)
-      File.open(playlist_file, "w") do |file|
-        file.puts("#EXTM3U")
-        playlist.track_ids.each do |track_id|
-          track = @tracks[track_id]
-          file.puts(track.playlist_path)
-        end
-      end
-
-      playlist[:path] = playlist_file
+      playlist.generate(self)
     end
+
     set_main_status("")
   end
 
