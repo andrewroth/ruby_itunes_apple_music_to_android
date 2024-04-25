@@ -1,4 +1,6 @@
 class Settings
+  include Logs
+
   FILENAME = "settings.yml"
 
   include Singleton
@@ -18,15 +20,15 @@ class Settings
   end
 
   def values=(values)
-    puts("set values #{values.inspect}")
+    log("set values #{values.inspect}")
     @values ||= {}
     @values.merge!(values)
-    puts "values in settings: #{@values.inspect}"
+    log("values in settings: #{@values.inspect}")
     save
   end
 
   def save
-    puts("dumping values #{values}")
+    log("dumping values #{values}")
     File.write(FILENAME, YAML.dump(values))
   end
 end

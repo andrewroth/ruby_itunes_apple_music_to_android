@@ -1,12 +1,13 @@
 require "tk"
 require "tkextlib/tile"
+require "tkextlib/iwidgets/scrolledtext"
 
 class MainUi
   include Singleton
   include HasStatus
   include Logs
 
-  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label, :scan_device_button, :scan_note
+  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label, :scan_device_button, :scan_note, :log_text
 
   def window_name
     "main window"
@@ -83,6 +84,7 @@ class MainUi
 
       playlist.checked ? check_table_row(i) : uncheck_table_row(i)
     end
+    set_status("")
   end
 
   def save_checked_rows
@@ -126,6 +128,8 @@ class MainUi
     RUBY_PLATFORM["darwin"] ? 1 : 120
   end
 
+  # I'm not super happy with this method. The UI building is a bit hodge-podge pulled from various examples online and built with a focus on 
+  # just working. TODO would be to at least build and pack the UI with consistent methods, ex. within a do block on the element or after.
   def build_ui
     instance = self
     settings = Settings.instance.values
@@ -136,7 +140,16 @@ class MainUi
 
     root.bind_all("MouseWheel", proc { |event|
       #puts("Mouse event #{event.inspect} #{-event.wheel_delta/scroll_scale} #{$scroll&.get}");
-      $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
+      begin
+        if @notebook.selected != @frame_log
+          $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
+        end
+      rescue Exception => e
+        msg = "Error: #{e.class.name} #{e.to_s}"
+        log(msg)
+        instance.log_trace(e)
+      end
+
     }) # $scroll&.set(120,140); $scroll&.assign})
 
 =begin
@@ -159,20 +172,27 @@ class MainUi
     }
 =end
 
-    n = Tk::Tile::Notebook.new(root) do
-      height 675
-      place('height' => 675, 'width' => 1000, 'x' => 0, 'y' => 0)
+    @notebook = Tk::Tile::Notebook.new(root) do
+      height 400
+      #place('height' => 675, 'width' => 1000, 'x' => 0, 'y' => 0)
+      pack(side: :top, fill: :both, expand: true)
     end
 
-    frame_main = TkFrame.new(n)
-    frame_log = TkFrame.new(n)
-    frame_about = TkFrame.new(n)
+    frame_main = TkFrame.new(@notebook)
+    @frame_log = frame_log = TkFrame.new(@notebook)
+    frame_about = TkFrame.new(@notebook)
 
-    n.add frame_main, text: "Main"
+    @notebook.add frame_main, text: "Main"
 
-    n.add frame_log, text: "Log"
+    @notebook.add frame_log, text: "Log"
+    #@log_text = TkText.new(frame_log) do
+    @log_text = Tk::Iwidgets::Scrolledtext.new(frame_log) do
+      borderwidth 1
+      #font TkFont.new('times 8')
+      pack(side: :top, fill: :both, expand: true)
+    end
 
-    n.add frame_about, text: "About"
+    @notebook.add frame_about, text: "About"
     Ttk::Label.new(frame_about) {
       wraplength 900
       #justify :left
@@ -315,6 +335,8 @@ class MainUi
         Thread.new {
           begin
             msg = "Scanning..."
+            instance.scan_device_button.state("disabled")
+            instance.copy_button.state("disabled")
             MainUi.instance.set_status(msg)
             MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
             instance.device.scan
@@ -325,6 +347,7 @@ class MainUi
             instance.scan_note.configure(text: Tk::UTF8_String.new(""))
             MainUi.instance.set_status(msg)
             MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
+            instance.scan_device_button.state("normal")
             instance.copy_button.state("normal")
           rescue Net::OpenTimeout => e
             # FtpWrapper should already have set an appropriate status
@@ -356,12 +379,14 @@ class MainUi
         Thread.new {
           msg = "Copying..."
           instance.scan_device_button.state("disabled")
+          instance.copy_button.state("disabled")
           MainUi.instance.set_status(msg)
           MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
           instance.log("Copy to Device")
           instance.library.generate_playlists
           instance.device.copy_to_device(instance.library)
           instance.scan_device_button.state("enabled")
+          instance.copy_button.state("enabled")
         }
       }
       grid column: 0, row: 1
@@ -417,9 +442,6 @@ class MainUi
     table.tag_configure("left-checked", checked.merge(left))
     table.tag_configure("not_checked", not_checked)
     table.tag_configure("checked", checked)
-
-    #logo = TkPhotoImage.new(:file=>File.join(File.dirname(File.expand_path(__FILE__)), '../../tcllogo.gif'))
-    #table.tag_configure('logo', :image=>logo, :showtext=>true)
 
     # clean up if mouse leaves the widget
     table.bind('Leave', proc{|w| w.selection_clear_all}, '%W')

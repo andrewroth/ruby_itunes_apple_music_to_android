@@ -27,6 +27,7 @@ class Library
       load_playlists
       log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
       progress_complete
+      set_main_status("")
     end
     puts time.real
   end

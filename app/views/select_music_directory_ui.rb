@@ -1,4 +1,6 @@
 class SelectMusicDirectoryUi < TkToplevel
+  include Logs
+
   UP_ONE_DIR_NAME = ".."
 
   attr_accessor :select_ftp_path_ftp
@@ -6,8 +8,10 @@ class SelectMusicDirectoryUi < TkToplevel
   def initialize
     super
     build_ui
-    puts("DONE BUILD UI")
-    connect_ftp
+    @select_ftp_path_ftp = FtpWrapper.instance
+    @select_ftp_path_ftp.connect
+    select_path_list_path("/")
+    log("DONE BUILD UI")
   end
 
   def build_ui
@@ -26,7 +30,10 @@ class SelectMusicDirectoryUi < TkToplevel
     end
 
     frame = TkFrame.new(root)
-    TkGrid(Ttk::Button.new(frame, text: "Select Folder", command: -> { MainUi.instance.ftp_path.insert(0, @ftp_path.text); MainUi.instance.save_settings; instance.destroy;  }), padx: 4, pady: 4)
+    TkGrid(Ttk::Button.new(frame, text: "Select Folder", command: -> {
+      MainUi.instance.ftp_path.value = @ftp_path.text
+      MainUi.instance.save_settings; instance.destroy;  }
+    ), padx: 4, pady: 4)
     frame.grid_columnconfigure(0, weight: 1)
     frame.pack(side: :bottom, fill: :x)
 
@@ -114,7 +121,7 @@ class SelectMusicDirectoryUi < TkToplevel
     table.bind('1', proc{|w, x, y|
       #rc = w.curselection[0]
       rc = w.index(TkComm._at(x,y))
-      puts("rc: #{rc.inspect}, tab[rc]: #{tab[rc]}")
+      log("rc: #{rc.inspect}, tab[rc]: #{tab[rc]}")
       select_path_list_path("#{@ftp_path.text}#{tab[rc]}/")
 =begin
       if tab[rc] == 'ON'
@@ -135,35 +142,10 @@ class SelectMusicDirectoryUi < TkToplevel
 
     0.step(rows) {|i|
       0.step(cols){|j|
-        puts("tab #{i},#{j}")
+        log("tab #{i},#{j}")
         #tab[i,j] = "#{i},#{j}"
         table.tag_cell('OFF', "#{i},#{j}")
       }
-    }
-  end
-
-  def connect_ftp
-    @status_text_label.configure(text: Tk::UTF8_String.new("Status: Connecting..."))
-    puts("Connecting...")
-    status_text_label = @status_text_label
-    instance = self
-
-    Thread.new {
-      begin
-        settings = Settings.instance.values
-        puts "setup ftp"
-        instance.select_ftp_path_ftp = ftp = Net::FTP.open(settings[:ftp_ip], port: settings[:ftp_port], open_timeout: 1)
-        puts "login"
-        ftp.login(settings[:ftp_username], settings[:ftp_password])
-        ftp.ls
-        status_text_label.configure(text: "Status: Connected")
-        select_path_list_path("/")
-      rescue Net::OpenTimeout
-        status_text_label.configure(text: Tk::UTF8_String.new("Couldn't connect to FTP server. Check your FTP settings, make sure the FTP is running on the device, check that you're on the same network as the device, and check your firewall."))
-      rescue Exception => e
-        status_text_label.configure(text: Tk::UTF8_String.new("#{e.class.name}: #{e.to_s}"))
-        raise
-      end
     }
   end
 
@@ -178,23 +160,17 @@ class SelectMusicDirectoryUi < TkToplevel
   end
 
   def select_path_list_path(path)
-    puts("1")
     @status_text_label.configure(text: Tk::UTF8_String.new("Status: Getting directory contents..."))
-    puts("2")
     split_path = path.split("/")
-    puts("3")
     if split_path.last == SelectMusicDirectoryUi::UP_ONE_DIR_NAME
       2.times { split_path.pop }
       path = split_path.join("/") + "/"
     end
-    puts("4")
 
-    puts("LAUNCH THREAD NOW")
     Thread.new {
-      puts("IN THREAD NOW")
       begin
         @select_ftp_path_ftp.chdir(path)
-        ls_result = @select_ftp_path_ftp.ls
+        ls_result = @select_ftp_path_ftp.ls_parsed
         @status_text_label.configure(text: Tk::UTF8_String.new("Status: Parsing directory contents..."))
 
         #byebug
@@ -207,13 +183,11 @@ class SelectMusicDirectoryUi < TkToplevel
           row = 1
         end
 
-        ls_result.each do |e|
-          entry = Net::FTP::List.parse(e)
-
+        ls_result.each do |entry|
           @select_ftp_path_window_table_data[row, 0] = entry.file? ? "F" : "D"
           @select_ftp_path_window_table_data[row, 1] = entry.file? ? entry.filesize : nil
           @select_ftp_path_window_table_data[row, 2] = entry.basename
-          puts("set #{row}, 2 to #{entry.basename}")
+          log("set #{row}, 2 to #{entry.basename}")
 
           @table.tag_cell(entry.file? ? "file" : "directory", "#{row},0")
           @table.tag_cell(entry.file? ? "file" : "directory", "#{row},1")
@@ -221,7 +195,7 @@ class SelectMusicDirectoryUi < TkToplevel
 
           row += 1
         end
-        puts "Set path to #{path}"
+        log("Set path to #{path}")
         @ftp_path.configure(text: Tk::UTF8_String.new(path))
         @status_text_label.configure(text: Tk::UTF8_String.new("Status: Connected"))
       rescue Exception => e

@@ -3,7 +3,7 @@ class FtpWrapper
   CANT_CONNECT_MSG = "Couldn't connect to FTP server. Check your FTP settings, make sure the FTP is running on the device, check that you're on the same network as the device, and check your firewall."
   DISCONNECTED_MSG = "Connection lost to FTP server. Retrying in 5 seconds..."
 
-	include Singleton
+  include Singleton # this is not really ideal if we ever want to use concurrency, but for now it's ok
   include Logs
   
   def connect
