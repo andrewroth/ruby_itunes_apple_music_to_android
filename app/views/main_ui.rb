@@ -7,7 +7,7 @@ class MainUi
   include HasStatus
   include Logs
 
-  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label, :scan_device_button, :scan_note, :log_text
+  attr_accessor :ftp_path, :device, :playlist_table_var, :library, :select_ftp_path_window, :progress, :copy_button, :status_label, :scan_device_button, :scan_note, :log_text, :notebook
 
   def window_name
     "main window"
@@ -110,7 +110,7 @@ class MainUi
     pl = @library.playlists.detect{ |pl| pl.name == @playlist_table_var["#{row},1"] }
     raise("can't find pl for row #{row}") unless pl
     pl.checked = checked
-    @playlist_table_var[row,0] = ""
+    @playlist_table_var[row,0] = checked ? "COPY" : ""
     save_checked_rows
   end
 
@@ -128,6 +128,10 @@ class MainUi
     RUBY_PLATFORM["darwin"] ? 1 : 120
   end
 
+  def log_tab_selected
+    @notebook.selected == @frame_log
+  end
+
   # I'm not super happy with this method. The UI building is a bit hodge-podge pulled from various examples online and built with a focus on 
   # just working. TODO would be to at least build and pack the UI with consistent methods, ex. within a do block on the element or after.
   def build_ui
@@ -141,9 +145,8 @@ class MainUi
     root.bind_all("MouseWheel", proc { |event|
       #puts("Mouse event #{event.inspect} #{-event.wheel_delta/scroll_scale} #{$scroll&.get}");
       begin
-        if @notebook.selected != @frame_log
-          $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
-        end
+        return if log_tab_selected
+        $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
       rescue Exception => e
         msg = "Error: #{e.class.name} #{e.to_s}"
         log(msg)

@@ -6,14 +6,33 @@ class Log
     @history = "".force_encoding("utf-8")
     @log_text_ready = false
     @i = 0
+
+    # tk leaves something to be desired... best way I could find to see when tab changes
+    Thread.new {
+      MainUi.instance.notebook.bind("Button-1", proc{|k| Log.instance.trigger_log })
+      MainUi.instance.notebook.bind("Button-2", proc{|k| Log.instance.trigger_log })
+      MainUi.instance.notebook.bind("Button-3", proc{|k| Log.instance.trigger_log })
+    }
+  end
+
+  def trigger_log
+    Thread.new {
+      sleep 0.2
+      log(nil)
+      sleep 1
+      log(nil)
+    }
   end
 
   def log(line)
-    #STDOUT.puts("[#{Time.now}] #{line}")
-    line = "[#{Time.now}] #{line}"
-    @file.puts(line)
 
-    if MainUi.instance.log_text
+    if line
+      line = "[#{Time.now}] #{line}"
+      @file.puts(line)
+    end
+
+    # only populate the log_text field when the tab is opened to save cpu/memory
+    if MainUi.instance.log_text && MainUi.instance.log_tab_selected
       if !@log_text_ready
         date = { foreground: "darkblue" }
         call = { foreground: "darkred" }
@@ -28,6 +47,7 @@ class Log
         @history.split("\n").each do |line|
           add_log_text_line(line)
         end
+        @history = "".force_encoding("utf-8")
 
         @log_text_ready = true
       end
@@ -41,6 +61,8 @@ class Log
   end
 
   def add_log_text_line(line)
+    return if line.nil? || line == ""
+
     @i += 1
     odd_even = @i % 2 == 0 ? "odd" : "even"
 
