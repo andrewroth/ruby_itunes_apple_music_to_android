@@ -49,6 +49,8 @@ class Log
           # UI hangs withoutthis
           if i % 100 == 0
             sleep 1
+          else
+            sleep 0.1
           end
         end
         @history = "".force_encoding("utf-8")

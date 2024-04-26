@@ -145,8 +145,9 @@ class MainUi
     root.bind_all("MouseWheel", proc { |event|
       #puts("Mouse event #{event.inspect} #{-event.wheel_delta/scroll_scale} #{$scroll&.get}");
       begin
-        return if log_tab_selected
-        $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
+        unless log_tab_selected
+          $scroll_target&.yview("scroll", -event.wheel_delta/scroll_scale, "units")
+        end
       rescue Exception => e
         msg = "Error: #{e.class.name} #{e.to_s}"
         log(msg)
