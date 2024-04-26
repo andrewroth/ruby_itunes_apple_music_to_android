@@ -45,7 +45,7 @@ class Log
         MainUi.instance.log_text.tag_configure("even", even)
 
         # mac is way too slow to do coloring on a big history.. just load it plaintext
-        if RUBY_PLATFORM["darwin"]
+        if RUBY_PLATFORM["darwin"] || @history.split("\n").length > 50
           MainUi.instance.log_text.insert(:end, @history)
           MainUi.instance.log_text.yview_moveto(1.0)
         else
