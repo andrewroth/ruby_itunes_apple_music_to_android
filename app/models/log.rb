@@ -44,8 +44,12 @@ class Log
         MainUi.instance.log_text.tag_configure("call-even", call.merge(even))
         MainUi.instance.log_text.tag_configure("odd", odd)
         MainUi.instance.log_text.tag_configure("even", even)
-        @history.split("\n").each do |line|
+        @history.split("\n").each_with_index do |line, i|
           add_log_text_line(line)
+          # UI hangs withoutthis
+          if i % 100 == 0
+            sleep 1
+          end
         end
         @history = "".force_encoding("utf-8")
 
