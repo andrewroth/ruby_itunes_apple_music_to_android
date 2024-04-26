@@ -30,6 +30,7 @@ class Library
       set_main_status("")
     end
     puts time.real
+    log("Library loaded in #{time.real} seconds")
   end
 
   def verify_tracks(track_ids = nil)
