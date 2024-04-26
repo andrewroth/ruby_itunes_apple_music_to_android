@@ -68,6 +68,7 @@ class MainUi
 
   def populate_playlist_table(device_scanned: false)
     return unless @library && @playlist_table_var
+    @disable_save_checked_rows = true
 
     if @table.rows != @library.playlists.count + 1
       @table.configure(rows: @library.playlists.count + 1)
@@ -85,6 +86,7 @@ class MainUi
       playlist.checked ? check_table_row(i) : uncheck_table_row(i)
     end
     set_status("")
+    @disable_save_checked_rows = false
   end
 
   def save_checked_rows
@@ -111,7 +113,7 @@ class MainUi
     raise("can't find pl for row #{row}") unless pl
     pl.checked = checked
     @playlist_table_var[row,0] = checked ? "COPY" : ""
-    save_checked_rows
+    save_checked_rows unless @disable_save_checked_rows
   end
 
   class SettingsEntry < Ttk::Entry
