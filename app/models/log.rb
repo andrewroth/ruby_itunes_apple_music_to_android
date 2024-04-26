@@ -4,7 +4,6 @@ class Log
   def initialize
     @file = File.open("out.log", "w")
     @history = "".force_encoding("utf-8")
-    @log_text_ready = false
     @i = 0
 
     # tk leaves something to be desired... best way I could find to see when tab changes
@@ -33,7 +32,7 @@ class Log
 
     # only populate the log_text field when the tab is opened to save cpu/memory
     if MainUi.instance.log_text && MainUi.instance.log_tab_selected
-      if !@log_text_ready
+      if @history.length > 0
         date = { foreground: "darkblue" }
         call = { foreground: "darkred" }
         odd = { }
@@ -61,8 +60,6 @@ class Log
           end
         end
         @history = "".force_encoding("utf-8")
-
-        @log_text_ready = true
       end
 
       add_log_text_line(line)
