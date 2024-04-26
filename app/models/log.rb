@@ -59,8 +59,6 @@ class Log
       end
 
       add_log_text_line(line)
-      #MainUi.instance.log_text.insert(:end, "\n" + line)
-      MainUi.instance.log_text.yview_moveto(1.0)
     else
       @history += "#{line}\n".force_encoding("utf-8")
     end
@@ -85,5 +83,6 @@ class Log
     end
 
     MainUi.instance.log_text.insert(:end, line, odd_even)
+    MainUi.instance.log_text.yview_moveto(1.0)
   end
 end
