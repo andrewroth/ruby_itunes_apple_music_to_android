@@ -44,13 +44,20 @@ class Log
         MainUi.instance.log_text.tag_configure("call-even", call.merge(even))
         MainUi.instance.log_text.tag_configure("odd", odd)
         MainUi.instance.log_text.tag_configure("even", even)
-        @history.split("\n").each_with_index do |line, i|
-          add_log_text_line(line)
-          # UI hangs withoutthis
-          if i % 100 == 0
-            sleep 1
-          else
-            sleep 0.1
+
+        # mac is way too slow to do coloring on a big history.. just load it plaintext
+        if RUBY_PLATFORM["darwin"]
+          MainUi.instance.log_text.value = @history
+          MainUi.instance.log_text.yview_moveto(1.0)
+        else
+          @history.split("\n").each_with_index do |line, i|
+            add_log_text_line(line)
+            # UI hangs withoutthis
+            if i % 100 == 0
+              sleep 1
+            else
+              #sleep 0.1
+            end
           end
         end
         @history = "".force_encoding("utf-8")
