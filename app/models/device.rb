@@ -1,4 +1,6 @@
 require "fileutils"
+require "concurrent"
+
 
 class Device
   include Logs
@@ -33,14 +35,18 @@ class Device
     def initialize(device)
       @device = device
       if File.exists?(FOLDER_CACHE_PATH)
-        @cache = YAML.send(YAML.respond_to?(:unsafe_load) ? :unsafe_load : :load, File.read(FOLDER_CACHE_PATH))
-        @cache = @cache.collect do |k, v|
+        cache = YAML.send(YAML.respond_to?(:unsafe_load) ? :unsafe_load : :load, File.read(FOLDER_CACHE_PATH))
+        cache = cache.collect do |k, v|
           k.dup.force_encoding("utf-8")
           v.each { |entry| entry.basename.dup.force_encoding("utf-8") }
           [k, v]
         end.to_h
+        @cache = Concurrent::Hash.new
+        cache.each_pair do |k,v|
+          @cache[k] = v
+        end
       else
-        @cache = {}
+        @cache = Concurrent::Hash.new
       end
     end
 
@@ -49,18 +55,19 @@ class Device
     end
 
     def empty?
-      @cache ||= {}
+      @cache ||= Concurrent::Hash.new
       log("returning #{@cache.empty?}")
       @cache.empty?
     end
 
     def [](path)
       path = path.chop if path.end_with?("/")
-      @cache ||= {}
+      @cache ||= Concurrent::Hash.new
       @cache[path]
     end
 
     def []=(path, val)
+      
       path = path.chop if path.end_with?("/")
       path.force_encoding("utf-8")
       val = val.collect { |entry| entry.is_a?(Net::FTP::List::Entry) ? Entry.new_from_ftp_entry(entry) : entry }
@@ -74,27 +81,52 @@ class Device
       File.write(FOLDER_CACHE_PATH, YAML.dump(@cache))
     end
 
-    # loop through every directory in music directory and build a big list of files
-    def update_cache(path = nil, recursive = true)
+    def num_threads
+      4
+    end
 
-      log("path: #{path}, recursive: #{recursive}")
+    def update_cache(path = nil, recursive = true, thread_id = nil, ftp = nil)
+      time = Benchmark.measure do
+        update_cache2(path, recursive, thread_id, ftp)
+      end
+      puts time.real
+    end
+
+    # loop through every directory in music directory and build a big list of files
+    def update_cache2(path = nil, recursive = true, thread_id = nil, ftp = nil)
+
+      puts("path: #{path}, recursive: #{recursive}, thread_id: #{thread_id}, ftp.object_id: #{ftp.object_id}")
 
       # first execution
       if path.nil?
-        ftp_path = Settings.instance.values[:ftp_path]
+        ftp = FtpWrapper.new
         ftp.connect
+        ftp_path = Settings.instance.values[:ftp_path]
         ftp.chdir(ftp_path)
+        puts("SETUP ftp.object_id #{ftp.object_id}")
+
         max_progress = ftp.ls_parsed.count{ |entry| entry.directory? || entry.name.end_with?(".m3u") }
         set_progress_max(max_progress + 1)
         
-        update_cache(ftp_path)
+        threads = []
+        @@j = 0
+        num_threads.times do |thread_id|
+          threads << Thread.new {
+            ftp = FtpWrapper.new
+            ftp.connect
+            puts("thread SETUP ftp.object_id #{ftp.object_id}")
+            ftp.chdir(ftp_path)
+
+            update_cache(ftp_path, true, thread_id, ftp)
+          }
+        end
+        threads.each { |thr| thr.join }
+
         write_cache
         return
       end
 
       root_folder = path == Settings.instance.values[:ftp_path] 
-      max_progress = ftp.ls_parsed.count(&:directory?) if root_folder
-
       ftp.chdir(path)
       entries = ftp.ls_parsed
 
@@ -107,9 +139,14 @@ class Device
 
       dirs = entries.find_all(&:directory?)
       dirs.each_with_index do |entry, i|
+        next unless i % num_threads == thread_id
+        puts("ftp object_id: #{ftp.object_id}, thread_id #{thread_id}, i #{i}")
+
+        sleep 1 # make sure other threads and UI get a chance
 
         if root_folder
-          set_progress_status("Scanning #{entry.name.inspect}", i: i, max: dirs.length)
+          #set_progress_status("Scanning #{entry.name.inspect}", i: i, max: dirs.length)
+          set_progress_status("Scanning #{entry.name.inspect}", i: (@@j += 1), max: dirs.length)
         end
 
         child_path = File.join(path, entry.name)
@@ -123,7 +160,7 @@ class Device
         if cached_entry_index && self[path][cached_entry_index].mtime == entry.mtime
           log("mtime matches for #{child_path}, skipping!")
         else
-          update_cache(child_path)
+          update_cache(child_path, true, thread_id, ftp)
           # by this point the index might have changed because of update_cache updating the ??!?!?
           if cached_entry_index
             log("update entry")
@@ -137,6 +174,7 @@ class Device
 
         if root_folder
           MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
+          #progress_step
           log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
         end
       end
@@ -150,7 +188,8 @@ class Device
   end
 
   def ftp
-    FtpWrapper.instance
+    #FtpWrapper.instance
+    @ftp ||= FtpWrapper.new
   end
 
   def update_folder_cache

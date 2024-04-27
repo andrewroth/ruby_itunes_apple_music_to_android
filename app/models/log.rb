@@ -24,6 +24,7 @@ class Log
   end
 
   def log(line)
+    puts line
 
     if line
       line = "[#{Time.now}] #{line}"
