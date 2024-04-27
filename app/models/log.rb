@@ -16,18 +16,14 @@ class Log
 
   def trigger_log
     Thread.new {
-      sleep 0.2
-      log(nil)
       sleep 1
       log(nil)
     }
   end
 
   def log(line)
-    puts line
-
     if line
-      line = "[#{Time.now}] #{line}"
+      line = "#{Thread.current.object_id} [#{Time.now}] #{line}"
       @file.puts(line)
     end
 

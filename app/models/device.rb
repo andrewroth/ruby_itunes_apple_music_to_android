@@ -28,10 +28,6 @@ class Device
       def directory?() type == :dir; end
     end
 
-    def ftp
-      FtpWrapper.instance
-    end
-
     def initialize(device)
       @device = device
       if File.exists?(FOLDER_CACHE_PATH)
@@ -71,7 +67,12 @@ class Device
       path = path.chop if path.end_with?("/")
       path.force_encoding("utf-8")
       val = val.collect { |entry| entry.is_a?(Net::FTP::List::Entry) ? Entry.new_from_ftp_entry(entry) : entry }
-      @cache[path] = val
+      begin
+        @cache[path] = val
+      rescue RuntimeError
+        sleep 0.2
+        retry
+      end
       write_cache
       val
     end
@@ -82,14 +83,14 @@ class Device
     end
 
     def num_threads
-      4
+      10
     end
 
     def update_cache(path = nil, recursive = true, thread_id = nil, ftp = nil)
       time = Benchmark.measure do
         update_cache2(path, recursive, thread_id, ftp)
       end
-      puts time.real
+      log("update_cache time: #{time.real}")
     end
 
     # loop through every directory in music directory and build a big list of files
@@ -102,22 +103,21 @@ class Device
         ftp = FtpWrapper.new
         ftp.connect
         ftp_path = Settings.instance.values[:ftp_path]
-        ftp.chdir(ftp_path)
         puts("SETUP ftp.object_id #{ftp.object_id}")
 
-        max_progress = ftp.ls_parsed.count{ |entry| entry.directory? || entry.name.end_with?(".m3u") }
+        max_progress = ftp.ls_parsed(ftp_path).count{ |entry| entry.directory? || entry.name.end_with?(".m3u") }
         set_progress_max(max_progress + 1)
         
         threads = []
         @@j = 0
         num_threads.times do |thread_id|
           threads << Thread.new {
-            ftp = FtpWrapper.new
-            ftp.connect
-            puts("thread SETUP ftp.object_id #{ftp.object_id}")
-            ftp.chdir(ftp_path)
+            ftp2 = FtpWrapper.new
+            log("thread #{thread_id} SETUP ftp.object_id #{ftp2.object_id}")
+            ftp2.connect
+            log("thread #{thread_id} SETUP AFTER ftp.object_id #{ftp2.object_id}")
 
-            update_cache(ftp_path, true, thread_id, ftp)
+            update_cache(ftp_path, true, thread_id, ftp2)
           }
         end
         threads.each { |thr| thr.join }
@@ -127,8 +127,7 @@ class Device
       end
 
       root_folder = path == Settings.instance.values[:ftp_path] 
-      ftp.chdir(path)
-      entries = ftp.ls_parsed
+      entries = ftp.ls_parsed(path)
 
       i = 0
 
@@ -139,10 +138,11 @@ class Device
 
       dirs = entries.find_all(&:directory?)
       dirs.each_with_index do |entry, i|
-        next unless i % num_threads == thread_id
-        puts("ftp object_id: #{ftp.object_id}, thread_id #{thread_id}, i #{i}")
+        next if root_folder && i % num_threads != thread_id
 
-        sleep 1 # make sure other threads and UI get a chance
+        log("ftp object_id: #{ftp.object_id}, thread_id #{thread_id}, i #{i}")
+
+        sleep 0.2 # make sure other threads and UI get a chance
 
         if root_folder
           #set_progress_status("Scanning #{entry.name.inspect}", i: i, max: dirs.length)
@@ -153,6 +153,7 @@ class Device
 
         # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
         cached_entry_index = (self[path] || []).index { |child_entry| child_entry.basename == entry.basename }
+
         log("path: #{path}, child_path: #{child_path}")
         log("found cached entry index #{cached_entry_index}. Compare mtimes #{self[path][cached_entry_index].mtime if cached_entry_index} (cache) <=> #{entry.mtime} (entry)")
 
@@ -160,10 +161,11 @@ class Device
         if cached_entry_index && self[path][cached_entry_index].mtime == entry.mtime
           log("mtime matches for #{child_path}, skipping!")
         else
-          update_cache(child_path, true, thread_id, ftp)
-          # by this point the index might have changed because of update_cache updating the ??!?!?
+          update_cache2(child_path, true, thread_id, ftp)
           if cached_entry_index
             log("update entry")
+            # find cached index again just in case, it should not be necessary, but just in case. It's quick.
+            cached_entry_index = (self[path] || []).index { |child_entry| child_entry.basename == entry.basename }
             self[path][cached_entry_index] = entry
           else
             log("new entry")
@@ -224,8 +226,7 @@ class Device
   # directory's modified timestamps
   def cache_key
     ftp.connect
-    ftp.chdir(Settings.instance.values[:ftp_path])
-    r = ftp.ls.join("\n")
+    r = ftp.ls(Settings.instance.values[:ftp_path]).join("\n")
     log("key value: #{r.inspect}")
     r
   end
@@ -242,7 +243,6 @@ class Device
     ftp.connect
     path = Settings.instance.values[:ftp_path]
     FileUtils.mkdir_p(DEVICE_PLAYLISTS_COPY)
-    ftp.chdir(path)
 
     original_path = Dir.pwd
     Dir.chdir(DEVICE_PLAYLISTS_COPY)
@@ -251,7 +251,7 @@ class Device
     #  File.delete(f)
     #end
 
-    ftp.ls_parsed do |parsed|
+    ftp.ls_parsed(path) do |parsed|
       next unless parsed.name.end_with?(".m3u")
       set_main_status("Scanning Playlists... #{parsed.name}")
       progress_step
@@ -262,7 +262,7 @@ class Device
         if File.exists?(parsed.name)
           log("No match on file sizes - compare playlist size #{parsed.name} locally #{File.size(parsed.name)} vs device #{parsed.filesize}")
         end
-        ftp.download_text(parsed.name)
+        ftp.download_text(File.join(path, parsed.name))
       end
     end
 

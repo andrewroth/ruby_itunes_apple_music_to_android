@@ -13,9 +13,12 @@ class FtpWrapper
   end
 
   def connect
+    log("start0 #{self.object_id}")
     return if @ftp
 
     set_statuses(CONNECTING_MSG)
+
+    log("start1 #{self.object_id}")
 
     begin
       settings = Settings.instance.values
@@ -36,6 +39,8 @@ class FtpWrapper
       raise
     end
 
+    log("end #{self.object_id}")
+
     set_statuses("")
   end
 
@@ -44,16 +49,11 @@ class FtpWrapper
     MainUi.instance&.select_ftp_path_window&.instance&.set_status(s)
   end
 
-  def chdir(path)
-    log_command("chdir #{path}")
-    byebug unless @ftp
-    run_command { @ftp.chdir(path) }
-    @last_chdir = path
-  end
-
-  def ls
-    log_command("ls")
-    run_command { @ftp.ls }
+  def ls(path)
+    log_command("ls #{path}")
+    r = run_command { @ftp.ls(path) }
+    log(r)
+    r
   end
 
   def reconnect!
@@ -132,8 +132,8 @@ class FtpWrapper
     end
   end
 
-  def ls_parsed
-    ls.collect do |list_row|
+  def ls_parsed(path)
+    ls(path).collect do |list_row|
       parsed = Net::FTP::List.parse(list_row)
       yield(parsed) if block_given?
       parsed
