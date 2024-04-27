@@ -97,7 +97,7 @@ class Device
     end
 
     def num_threads
-      10
+      3
     end
 
     def update_cache(path = nil, recursive = true, thread_id = nil, ftp = nil)
@@ -325,7 +325,7 @@ class Device
   end
 
   def num_threads
-    10
+    3
   end
 
   def copy_to_device(library)
