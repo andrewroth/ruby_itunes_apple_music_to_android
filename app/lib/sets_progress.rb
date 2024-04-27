@@ -34,6 +34,7 @@ module SetsProgress
       max_f = progress_max_f
     end
     set_main_status("[#{i}/#{max}, #{((i / max_f) * 100).round(1)}%] #{s}")
+    sleep 0.1
   end
 
   def progress_clear

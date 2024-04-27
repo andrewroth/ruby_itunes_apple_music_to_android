@@ -1,7 +1,7 @@
 class FtpWrapper
   CONNECTING_MSG = "Connecting..."
   CANT_CONNECT_MSG = "Couldn't connect to FTP server. Check your FTP settings, make sure the FTP is running on the device, check that you're on the same network as the device, and check your firewall."
-  DISCONNECTED_MSG = "Connection lost to FTP server. Retrying in 5 seconds..."
+  DISCONNECTED_MSG = "Connection lost to FTP server."
 
   include Logs
   
@@ -10,6 +10,38 @@ class FtpWrapper
   end
 
   def new
+  end
+
+  def countdown(num)
+    if num == 0
+      return
+    else
+      set_statuses("Retrying in #{num} seconds...")
+      sleep 1
+      countdown(num - 1)
+    end
+  end
+
+  def reconnect!
+    @ftp = nil
+    connect(true)
+  end
+
+  def reconnect_repeatedly!
+    @ftp = nil
+    connect_repeatedly
+  end
+
+  def connect_repeatedly
+    while @ftp.nil?
+      sleep(2) unless @ftp
+      countdown(5)
+      begin
+        connect
+      rescue
+      end
+      break if @ftp
+    end
   end
 
   def connect
@@ -56,11 +88,6 @@ class FtpWrapper
     r
   end
 
-  def reconnect!
-    @ftp = nil
-    connect
-  end
-
   def upload_text(path, device_path)
     run_command { @ftp.puttextfile(path, device_path) }
   end
@@ -96,37 +123,43 @@ class FtpWrapper
   end
 
   def mkdir(path)
-		begin
-			run_command { @ftp.mkdir(path) }
-		rescue Net::FTPPermError => e
-			# TODO: probably should check directly from an "ls" of the parent directory whether this is really a file or directory...
-			# if it's a directory, we can continue. If it's a file, we should mark this particular track as failed
-			if e.to_s =~ /550 Already exists/
-				log("already exists.. weird it wasn't in cache?")
-			else
-				raise
-			end
-		rescue Net::FTPReplyError => e
-			raise unless e.to_s =~ /250 Directory created/
-		end
+    run_command do
+      begin
+        @ftp.mkdir(path)
+      rescue Net::FTPPermError => e
+        log("rescue #{e.class.name}: #{e.to_s}")
+
+        # TODO: probably should check directly from an "ls" of the parent directory whether this is really a file or directory...
+        # if it's a directory, we can continue. If it's a file, we should mark this particular track as failed
+        if e.to_s =~ /Already exists/
+          log("already exists.. weird it wasn't in cache? Continuing on..")
+        else
+          raise
+        end
+      rescue Net::FTPReplyError => e
+        raise unless e.to_s =~ /250 Directory created/
+      end
+    end
   end
 
   def run_command
     begin
       yield
-    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout => e
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout, Errno::ECONNABORTED => e
       set_statuses("(#{e.to_s}) #{DISCONNECTED_MSG}")
-      sleep 5
-      begin
-        reconnect!
-      rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout => e
-        # the retry will trigger the original rescue again
-      end
-
+      sleep 2
+      countdown(5)
+      reconnect_repeatedly!
       retry
+    rescue Net::FTPPermError => e
+      log("rescue #{e.class.name}: #{e.to_s}")
+
+      # so weirdly, sometimes Net::FTPPermError ends up here, and a re-raise doesn't hit the other rescue in mkdir, so just do it here
+      if e.to_s =~ /Already exists/
+        log("already exists.. weird it wasn't in cache? Continuing on..")
+      end
     rescue Exception => e
-      log(e.class.name)
-      log(e.to_s)
+      log("Exception #{e.class.name}: #{e.to_s}... re-raising")
       raise
     end
   end

@@ -89,36 +89,14 @@ class Library
 
         log("Search for #{entry.filesize} (#{full_path})")
         if tracks = @tracks_by_size[entry.filesize]
-          match = false
+          log("   -> #{tracks}")
 
-          if tracks.length == 1
-            match = tracks.first
-          elsif tracks.length > 1
-            log("MULTIPLE MATCHES FOR #{File.join(path, entry.basename)} (#{entry}): #{tracks}.")
-            log("Trying filename match")
-            track = tracks.detect{ |t| File.basename(t.name) == entry.basename }
-
-            if track
-              log("Found match for #{full_path}: #{tracks}")
-              match = track
-            else
-              log("Can't find a direct file name match, trying match by substring of track names to entry basename")
-              track = tracks.detect{ |t| entry.basename[t.name] }
-
-              if track
-                log("Found match using substirng method: #{tracks}")
-                match = track
-              else
-                raise("multiple matches #{File.join(path, entry.basename)} (#{entry}) but can't determine which one to use.")
-              end
-            end
+          tracks.each do |track|
+            track.device_location = full_path
+            track.on_device = true
           end
-
-          if match
-            log("   -> #{tracks}")
-            @tracks[match.id].device_location = full_path
-            @tracks[match.id].on_device = true
-          end
+        else
+          log("   -> NO MATCH")
         end
       end
     end

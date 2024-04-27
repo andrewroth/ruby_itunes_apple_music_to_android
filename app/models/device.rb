@@ -47,6 +47,15 @@ class Device
       end
     end
 
+    def keys
+      @cache.keys
+    end
+
+    def delete(key)
+      @cache.delete(key)
+      write_cache
+    end
+
     def each(*args, &block)
       @cache.each(*args, &block)
     end
@@ -162,6 +171,18 @@ class Device
       dirs = entries.find_all(&:directory?)
       #log("dirs: #{dirs}")
 
+      # if a directory was removed on the device, we should remove the cache entry entirely
+      if self[path] && ((root_folder && thread_id == 0) || !root_folder)
+        to_delete = self[path].find_all { |path| path.directory? && !dirs.detect { |device_dir| device_dir.basename == path.basename } }
+        to_delete.each do |delete_entry|
+          #byebug if thread_id == 0
+          delete_path = File.join(path, delete_entry.basename)
+          keys.find_all{ |key| key.start_with?(delete_path) }.each do |delete_key|
+            delete(delete_key)
+          end
+        end
+      end
+      
       # now handle all directories and their children
       dirs.each_with_index do |entry, i|
         next if root_folder && i % num_threads != thread_id
@@ -223,6 +244,8 @@ class Device
   # compare cache_key with cache of ftp_path, if they match cache is valid, otherwise update it
   def scan
     set_main_status("Scanning...")
+    @ftp.connect if @ftp
+
     if @folder_cache&.empty? || !File.exists?(FOLDER_CACHE_PATH) || !File.exists?(CACHE_KEY_PATH) || File.read(CACHE_KEY_PATH) != cache_key
       log("Difference detected, rebuilding folder cache")
       delete_cache_key
@@ -340,6 +363,11 @@ class Device
         log("thread #{thread_id} SETUP ftp.object_id #{ftp2.object_id}")
         ftp2.connect
         log("thread #{thread_id} SETUP AFTER ftp.object_id #{ftp2.object_id}")
+
+        # stagger threads to lessen chance of different threads making the same directories
+        # It will continue on if the directory already exists, but it's more efficient and quicker
+        # if it doesn't have to
+        sleep 0.5 
 
         copy_tracks(thread_id, track_ids, library, ftp2)
       }
