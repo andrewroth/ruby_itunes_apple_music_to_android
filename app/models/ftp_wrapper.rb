@@ -41,6 +41,7 @@ class FtpWrapper
   def chdir(path)
     log_command("chdir #{path}")
     run_command { @ftp.chdir(path) }
+    @last_chdir = path
   end
 
   def ls
@@ -106,12 +107,14 @@ class FtpWrapper
   def run_command
     begin
       yield
-    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError
-      set_statuses(DISCONNECTED_MSG)
+    rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout => e
+      set_statuses("(#{e.to_s}) #{DISCONNECTED_MSG}")
       sleep 5
       begin
         reconnect!
-      rescue Net::OpenTimeout
+        chdir(@last_chdir) if @last_chdir # go to the last chdir otherwise the next commands will fail
+      rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout => e
+        # the retry will trigger the original rescue again
       end
 
       retry
