@@ -56,7 +56,7 @@ class Track
     end
   end
 
-  def copy_to_device(device)
+  def copy_to_device(device, ftp)
     if on_device
       log("[#{name}] -> No action required, it's already on the device (#{device_location.inspect})")
       return
@@ -66,6 +66,7 @@ class Track
 
     # make each parent directory
     base = base_device_path
+
     File.dirname(device_location[base.length..]).split("/").each do |dir|
       path = File.join(base, dir)
       log("checking cache for #{path}")
@@ -73,20 +74,24 @@ class Track
         log("Found cache existing for #{path}, no need to mkdir it")
       else
         log("mkdir #{path.inspect}")
-        device.ftp.mkdir(path)
-
-        log("update cache for #{dir.inspect}")
-        device.folder_cache.update_cache(path, false)
-        device.folder_cache.write_cache
+        ftp.mkdir(path)
       end
       base = path
     end
 
     log("copy #{location.inspect} to #{device_location}")
-    device.ftp.upload_binary(location, device_location)
+    ftp.upload_binary(location, device_location)
 
-    device.folder_cache.update_cache(File.dirname(device_location), false)
-    device.folder_cache.write_cache
+    # go up the directories until base and update caches
+    dir = File.dirname(device_location)
+    base = base_device_path
+    base.strip! if base.end_with?("/")
+    log("base #{base}")
+    while dir.length >= base.length
+      log("update cache for #{dir.inspect}")
+      device.folder_cache.update_cache(dir, false, nil, ftp)
+      dir = File.dirname(dir)
+    end
   end
 
   private

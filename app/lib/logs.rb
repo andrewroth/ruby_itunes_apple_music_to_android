@@ -8,5 +8,6 @@ module Logs
     e.backtrace.each do |caller|
       log(caller)
     end
+    Log.instance.flush
   end
 end

@@ -52,7 +52,7 @@ class FtpWrapper
   def ls(path)
     log_command("ls #{path}")
     r = run_command { @ftp.ls(path) }
-    log(r)
+    #log(r)
     r
   end
 
@@ -61,8 +61,8 @@ class FtpWrapper
     connect
   end
 
-  def upload_text(path)
-    run_command { @ftp.puttextfile(path) }
+  def upload_text(path, device_path)
+    run_command { @ftp.puttextfile(path, device_path) }
   end
 
   def upload_binary(local_path, remote_path = nil)
@@ -119,7 +119,6 @@ class FtpWrapper
       sleep 5
       begin
         reconnect!
-        chdir(@last_chdir) if @last_chdir # go to the last chdir otherwise the next commands will fail
       rescue Errno::ECONNRESET, Errno::EPIPE, EOFError, Errno::ETIMEDOUT, Net::OpenTimeout => e
         # the retry will trigger the original rescue again
       end

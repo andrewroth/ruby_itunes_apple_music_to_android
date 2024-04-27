@@ -86,4 +86,8 @@ class Log
     MainUi.instance.log_text.insert(:end, line, odd_even)
     MainUi.instance.log_text.yview_moveto(1.0)
   end
+
+  def flush
+    @file.flush
+  end
 end

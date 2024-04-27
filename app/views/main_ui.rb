@@ -363,6 +363,8 @@ class MainUi
             MainUi.instance.set_status(msg)
             MainUi.instance&.select_ftp_path_window&.instance&.set_status(msg)
             raise
+          ensure
+            instance.scan_device_button.state("normal")
           end
         }
       }

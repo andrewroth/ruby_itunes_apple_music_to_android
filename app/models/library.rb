@@ -95,7 +95,7 @@ class Library
             match = tracks.first
           elsif tracks.length > 1
             log("MULTIPLE MATCHES FOR #{File.join(path, entry.basename)} (#{entry}): #{tracks}.")
-            log("Using filename match")
+            log("Trying filename match")
             track = tracks.detect{ |t| File.basename(t.name) == entry.basename }
 
             if track

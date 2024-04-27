@@ -20,6 +20,10 @@ class Playlist
     File.join(Device::DEVICE_PLAYLISTS_COPY, name + ".m3u")
   end
 
+  def device_path
+    File.join(Settings.instance.values[:ftp_path], name + ".m3u")
+  end
+  
   def update_with_device_data
     if File.exists?(device_copy_path)
       @device_tracks_count = File.read(device_copy_path).split("\n").count{ |line| line != "#EXTM3U" && line != "" }
@@ -43,8 +47,7 @@ class Playlist
 
   def copy_to_device(ftp)
     set_main_status("Copying playlist #{name}, path: #{generated_path}")
-    ftp.chdir(Settings.instance.values[:ftp_path])
-    ftp.upload_text(generated_path)
+    ftp.upload_text(generated_path, device_path)
     FileUtils.cp(generated_path, device_copy_path)
   end
 end
