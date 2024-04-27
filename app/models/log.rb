@@ -25,7 +25,7 @@ class Log
     if line
       line = "#{Thread.current.object_id} [#{Time.now}] #{line}"
       @file.puts(line)
-      puts line
+      #puts line
     end
 
     # only populate the log_text field when the tab is opened to save cpu/memory
