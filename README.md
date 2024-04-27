@@ -24,15 +24,17 @@ time. It could perhaps be automated with AppleScript on macs.
 ## iSyncr
 
 There's a program and companion app called iSyncr that used to work well, but in my experience, since
-the company was sold, has not worked well. It became extremely slow. I thought, "I can do better",
+the company was sold, has not worked well; it became extremely slow. I thought, "I can do better",
 and this program is the result. I made sure to add lots of progress bars and status labels to indicate
 what the program is doing. Copying that much data can be slow, but at least the user will know how far
 along things are.
 
-This program is compatible with iSyncr folders. After telling it what path to the iSyncr music folder
+This program is compatible with iSyncr music  folders. After telling it what path to the iSyncr music folder
 on your device, it will scan the folder and determine matches to your iTunes/Apple Music library tracks.
 It uses file size as the main metric, and file name as a secondary one. Generally, this has worked well,
 but if you come across an instance where it doesn't, please leave an issue report.
+
+Note that there's no syncing back to iTunes for play counts or anything like that, unfortunately.
 
 ## Installation
 
@@ -50,7 +52,7 @@ work to get it installed, but it's fairly standard stuff.
 4. run `ruby run.rb` to run the app, or run "run.mac" which is a simple applescript file I made to run the
    app in a terminal window.
 
-If you need help, let me know and I'll try to help and make a wiki entry or something.
+If you need help, let me know at andrewroth@gmail.com or submit an issue and I'll try to help and make a wiki entry or something.
 
 Helpful links:
 
@@ -81,9 +83,7 @@ models, views and lib.
 Some ideas I have for future work:
 
 - deletion of files or playlists from device
-- tabs to make the UI cleaner. Ex. "Config", "About", "Copy", "Log", etc.
 - indication of device space used/free
-- refactor track and playlist into their own model (and numerous other code cleanups)
 - add standardrb to keep ruby style consistent
 
 By all means, let me know of any feature requests and bugs. I'm glad to look at pull requests and add other
