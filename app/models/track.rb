@@ -7,6 +7,9 @@ class Track
   attr_reader :id, :name, :size
 
   def initialize(id:, name:, size:, location:, music_folder:)
+    reset_files_in_directory
+    @@disk_file_sizes_to_path ||= {}
+
     @id = id
     @name = name
     @size = size
@@ -159,8 +162,8 @@ class Track
     while split_base.any?
       log("search look, split_base: #{split_base.inspect}")
 
-      if ((i += 1) == 3) && "#{split_base.join("/")}/".length < Library.instance.music_folder_path.length
-        log("Giving up search because searched at least 3 directories up (if possible), and #{split_base.join("/").inspect} hit under music folder #{Library.instance.music_folder_path.inspect}")
+      if ((i += 1) == 3) && "#{split_base.join("/")}/".length < (fp = MainUi.instance.library.music_folder_path).length
+        log("Giving up search because searched at least 3 directories up (if possible), and #{split_base.join("/").inspect} hit under music folder #{fp.inspect}")
         break
       end
 
@@ -191,6 +194,6 @@ class Track
 
     return true if @@files_in_directory[original_location]
 
-    File.exists?(original_location)
+    File.exist?(original_location)
   end
 end

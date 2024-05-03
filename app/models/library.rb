@@ -25,7 +25,7 @@ class Library
       load_tracks
       #verify_tracks
       load_playlists
-      log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
+      #log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
       progress_complete
       set_main_status("")
     end
@@ -108,7 +108,8 @@ class Library
       # el is a dict with keys, and "Playlist Items" is where the track ids are
       name = el.xpath("key[text()='Name']").first.next_element.text
       log name
-      playlist_id = el.xpath("key[text()='Name']").first.next_element.text
+      #playlist_id = el.xpath("key[text()='Name']").first.next_element.text
+      playlist_id = el.xpath("key[text()='Playlist ID']").first.next_element.text
       track_ids = el.xpath("key[text()='Playlist Items']").first
       if track_ids
         track_ids = track_ids.next_element.xpath('dict/integer').collect(&:text)
@@ -118,14 +119,15 @@ class Library
         # a playlist without track ids is not something we can copy to the device
         next
       end
-      @playlists << Playlist.new(name: name, playlist_id: playlist_id, track_ids: track_ids, checked: (Settings.instance.values[:checked_playlist_ids] || []).include?(playlist_id))
+      checked = (pl_ids = Settings.instance.values[:checked_playlist_ids] || []).include?(playlist_id) || pl_ids.include?(name)
+      @playlists << Playlist.new(name: name, playlist_id: playlist_id, track_ids: track_ids, checked: checked)
       progress_step
     end 
   end
 
   def generate_playlists
     set_main_status("Generating playlists...")
-    Dir.mkdir(LOCAL_PLAYLISTS_DIR) unless Dir.exists?(LOCAL_PLAYLISTS_DIR)
+    Dir.mkdir(LOCAL_PLAYLISTS_DIR) unless Dir.exist?(LOCAL_PLAYLISTS_DIR)
 
     playlists.each do |playlist|
       playlist.generate(self)

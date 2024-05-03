@@ -28,7 +28,7 @@ class Device
 
     def initialize(device)
       @device = device
-      if File.exists?(FOLDER_CACHE_PATH)
+      if File.exist?(FOLDER_CACHE_PATH)
         @cache = YAML.send(YAML.respond_to?(:unsafe_load) ? :unsafe_load : :load, File.read(FOLDER_CACHE_PATH))
         @cache = @cache.collect do |k, v|
           k.dup.force_encoding("utf-8")
@@ -91,13 +91,13 @@ class Device
 
     def write_cache
       cache_lock.synchronize do
-        #File.delete(FOLDER_CACHE_PATH) if File.exists?(FOLDER_CACHE_PATH) # not sure why but this seems necessary
+        #File.delete(FOLDER_CACHE_PATH) if File.exist?(FOLDER_CACHE_PATH) # not sure why but this seems necessary
         File.write(FOLDER_CACHE_PATH, YAML.dump(@cache))
       end
     end
 
     def num_threads
-      10
+      1
     end
 
     def update_cache(path = nil, recursive = true, thread_id = nil, ftp = nil)
@@ -224,9 +224,9 @@ class Device
         end
 
         if root_folder
-          MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
-          #progress_step
-          log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
+          #MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
+          progress_step
+          #log("progress #{MainUi.instance.progress.value}/#{MainUi.instance.progress.maximum}")
         end
       end
     end
@@ -246,7 +246,7 @@ class Device
     set_main_status("Scanning...")
     @ftp.connect if @ftp
 
-    if @folder_cache&.empty? || !File.exists?(FOLDER_CACHE_PATH) || !File.exists?(CACHE_KEY_PATH) || File.read(CACHE_KEY_PATH) != cache_key
+    if @folder_cache&.empty? || !File.exist?(FOLDER_CACHE_PATH) || !File.exist?(CACHE_KEY_PATH) || File.read(CACHE_KEY_PATH) != cache_key
       log("Difference detected, rebuilding folder cache")
       delete_cache_key
       @folder_cache.update_cache
@@ -287,7 +287,7 @@ class Device
   end
 
   def delete_cache_key
-    File.delete(CACHE_KEY_PATH) if File.exists?(CACHE_KEY_PATH)
+    File.delete(CACHE_KEY_PATH) if File.exist?(CACHE_KEY_PATH)
   end
 
   def download_playlists
@@ -306,11 +306,11 @@ class Device
       next unless parsed.name.end_with?(".m3u")
       set_main_status("Scanning Playlists... #{parsed.name}")
       progress_step
-      log("Looking for existing playlist: #{parsed.name}, #{File.exists?(parsed.name)}")
-      if File.exists?(parsed.name) && File.size(parsed.name) == parsed.filesize
+      log("Looking for existing playlist: #{parsed.name}, #{File.exist?(parsed.name)}")
+      if File.exist?(parsed.name) && File.size(parsed.name) == parsed.filesize
         log("Already have #{parsed.name} locally and size matches, skipping download.")
       else 
-        if File.exists?(parsed.name)
+        if File.exist?(parsed.name)
           log("No match on file sizes - compare playlist size #{parsed.name} locally #{File.size(parsed.name)} vs device #{parsed.filesize}")
         end
         ftp.download_text(File.join(path, parsed.name))
@@ -325,7 +325,7 @@ class Device
   end
 
   def num_threads
-    10
+    1
   end
 
   def copy_to_device(library)

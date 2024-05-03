@@ -25,7 +25,7 @@ class Playlist
   end
   
   def update_with_device_data
-    if File.exists?(device_copy_path)
+    if File.exist?(device_copy_path)
       @device_tracks_count = File.read(device_copy_path).split("\n").count{ |line| line != "#EXTM3U" && line != "" }
     end
   end
@@ -34,7 +34,7 @@ class Playlist
 		log("Generating playlist #{name}")
 
     # this shouldn't be necessary, but sometimes it seemed to be in my testing
-		File.delete(generated_path) if File.exists?(generated_path)
+		File.delete(generated_path) if File.exist?(generated_path)
 
 		File.open(generated_path, "w") do |file|
 			file.puts("#EXTM3U")

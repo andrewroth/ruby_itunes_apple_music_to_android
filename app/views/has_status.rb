@@ -5,7 +5,9 @@ module HasStatus
   end
 
   def set_status(status)
-    log("#{window_name} set status: #{status.inspect}")
-    @status_label.configure(text: Tk::UTF8_String.new(status))
+    #log("#{window_name} set status: #{status.inspect}")
+    #@status_label.configure(text: Tk::UTF8_String.new(status))
+    #WebServer.instance.driver.execute_script(%|$("#status").html(""
+    WebServer.exec(%|$("#status").html("#{WebServer.h(status)}")|)
   end
 end

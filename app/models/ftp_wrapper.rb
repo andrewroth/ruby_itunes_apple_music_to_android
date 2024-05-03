@@ -59,14 +59,14 @@ class FtpWrapper
       log("Net::FTP login call here")
       @ftp.login(settings[:ftp_username], settings[:ftp_password])
       #select_path_list_path("/")
-    rescue Net::OpenTimeout
+    rescue Net::OpenTimeout, Net::FTPConnectionError
       log(CANT_CONNECT_MSG)
       set_statuses(CANT_CONNECT_MSG)
       raise
     rescue Exception => e
       s = "Error #{e.class.name}: #{e.to_s}"
       MainUi.instance.set_status(s)
-      MainUi.instance.select_ftp_path_window&.instance.set_status(s)
+      #MainUi.instance.select_ftp_path_window&.instance.set_status(s)
       log(caller.join("\n\t"))
       raise
     end

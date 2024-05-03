@@ -2,24 +2,33 @@ module SetsProgress
   # I like seeing the progress at 100% full, and step will go back to 0 when it hits maximum
   # Doing it this way doesn't have that problem
   def progress_step
-    MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
+    #MainUi.instance.progress.value(MainUi.instance.progress.value + 1)
+    @value ||= 0
+    @value += 1
 
     # if the log tab is selected, do a very short sleep to make sure the UI refreshes
     # it makes the whole load or whatever is being done slower, but at least the user will see
     # log updates, and if they're on the log tab they probably want to see what's going on
-    sleep(0.1) if MainUi.instance.log_tab_selected
+    #sleep(0.1) if MainUi.instance.log_tab_selected
+
+    if @max.to_i < 200 || (@max >= 200 && @value % 10 == 0)
+      WebServer.exec(%|$("#progress").css("width", "#{((@value.to_f / @max.to_f) * 100).round(2)}%")|)
+    end
   end
 
   def progress_value
-    MainUi.instance.progress.value
+    #MainUi.instance.progress.value
+    @value
   end
 
   def set_progress_max(max)
-    MainUi.instance.progress.maximum(max)
+    #MainUi.instance.progress.maximum(max)
+    @max = max
   end
 
   def progress_max
-    MainUi.instance.progress.maximum
+    #MainUi.instance.progress.maximum
+    @max
   end
 
   def progress_max_f
@@ -27,6 +36,8 @@ module SetsProgress
   end
 
   def set_progress_status(s, i: progress_value, max: nil)
+    #@value = progress_value
+
     if max
       max_f = max.to_f
     else
@@ -38,13 +49,19 @@ module SetsProgress
   end
 
   def progress_clear
-    MainUi.instance.progress.value = 0
+    #MainUi.instance.progress.value = 0
+    @value = 0
+    WebServer.exec(%|$("#progress").hide()|)
+    WebServer.exec(%|$("#progress").css("width", "0%")|)
+    WebServer.exec(%|$("#progress").show()|)
   end
 
   def progress_complete
     log("complete progress")
-    MainUi.instance.progress.value = progress_max
+    WebServer.exec(%|$("#progress").css("width", "100%")|)
+    #MainUi.instance.progress.value = progress_max
     sleep 0.1
-    MainUi.instance.progress.value = 0
+    #MainUi.instance.progress.value = 0
+    progress_clear
   end
 end

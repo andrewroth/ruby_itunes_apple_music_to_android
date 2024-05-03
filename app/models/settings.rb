@@ -8,7 +8,7 @@ class Settings
   attr_accessor :values
 
   def initialize
-    if File.exists?(FILENAME)
+    if File.exist?(FILENAME)
       @values = YAML.load(File.read(FILENAME)) 
       puts("loaded values as #{@values}")
     else
