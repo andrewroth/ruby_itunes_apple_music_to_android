@@ -12,7 +12,7 @@ module SetsProgress
     #sleep(0.1) if MainUi.instance.log_tab_selected
 
     if @max.to_i < 200 || (@max >= 200 && @value % 10 == 0)
-      WebServer.exec(%|$("#progress").css("width", "#{((@value.to_f / @max.to_f) * 100).round(2)}%")|)
+      WebServer.exec_async(%|$("#progress").css("width", "#{((@value.to_f / @max.to_f) * 100).round(2)}%")|)
     end
   end
 

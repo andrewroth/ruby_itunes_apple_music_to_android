@@ -8,6 +8,6 @@ module HasStatus
     #log("#{window_name} set status: #{status.inspect}")
     #@status_label.configure(text: Tk::UTF8_String.new(status))
     #WebServer.instance.driver.execute_script(%|$("#status").html(""
-    WebServer.exec(%|$("#status").html("#{WebServer.h(status)}")|)
+    WebServer.exec_async(%|$("#status").html("#{WebServer.h(status)}")|)
   end
 end

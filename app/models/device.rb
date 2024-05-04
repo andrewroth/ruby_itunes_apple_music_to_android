@@ -116,7 +116,7 @@ class Device
       if path.nil?
         ftp = FtpWrapper.new
         ftp.connect
-        ftp_path = Settings.instance.values[:ftp_path]
+        ftp_path = Settings.instance.values[:ftp_path].force_encoding("utf-8")
         puts("SETUP ftp.object_id #{ftp.object_id}")
 
         max_progress = ftp.ls_parsed(ftp_path).count{ |entry| entry.directory? || entry.name.end_with?(".m3u") }
@@ -185,28 +185,29 @@ class Device
       
       # now handle all directories and their children
       dirs.each_with_index do |entry, i|
-        next if root_folder && i % num_threads != thread_id
 
-        log("ftp object_id: #{ftp.object_id}, thread_id #{thread_id}, i #{i}")
+        #log("ftp object_id: #{ftp.object_id}, thread_id #{thread_id}, i #{i}")
 
         if root_folder
+          next if i % num_threads != thread_id
+          @j += 1
           #set_progress_status("Scanning #{entry.name.inspect}", i: i, max: dirs.length)
-          set_progress_status("Scanning #{entry.name.inspect}", i: (@j += 1), max: dirs.length)
-          sleep 0.2
+          #sleep 0.2
         end
 
-        child_path = File.join(path, entry.name)
+        child_path = File.join(path, entry.name.force_encoding("utf-8")).force_encoding("utf-8")
 
         # if we've already processed this path with the same mtime, we can assume it's up to take, so skip it
         cached_entry_index = (self[path] || []).index { |child_entry| child_entry.basename == entry.basename }
 
-        log("path: #{path}, child_path: #{child_path}")
-        log("found cached entry index #{cached_entry_index}. Compare mtimes #{self[path][cached_entry_index].mtime if cached_entry_index} (cache) <=> #{entry.mtime} (entry)")
+        #log("path: #{path}, child_path: #{child_path}")
+        #log("found cached entry index #{cached_entry_index}. Compare mtimes #{self[path][cached_entry_index].mtime if cached_entry_index} (cache) <=> #{entry.mtime} (entry)")
 
         # skip further listing if mtimes match, that means we already have it in cache
         if cached_entry_index && self[path][cached_entry_index].mtime == entry.mtime
-          log("mtime matches for #{child_path}, skipping!")
+          #log("mtime matches for #{child_path}, skipping!")
         else
+          set_progress_status("Scanning #{entry.name.inspect}", i: @j, max: dirs.length) if root_folder
           update_cache2(child_path, true, thread_id, ftp)
 
           # update the cache entry only after update_cache2 just above, so that the mtime set is only done after the children are processed

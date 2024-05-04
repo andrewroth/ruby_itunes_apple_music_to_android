@@ -15,10 +15,18 @@ class WebServer
   end
 
   def self.instance=(val)
-    @instance = val
-  end
+    raise("Should not set instance twice") if @instance
 
-  attr_reader :driver
+    @instance = val
+    @exec_queue = Queue.new
+    @exec_lock = Mutex.new
+
+    Thread.new {
+      while true
+        exec(@exec_queue.pop)
+      end
+    }
+  end
 
   # these should be moved to somewhere better
   def self.h(val)
@@ -26,10 +34,18 @@ class WebServer
   end
 
   def self.exec(val)
-    instance.driver.execute_script(val)
+    @exec_lock.synchronize {
+      instance.driver.execute_script(val)
+    }
+  end
+
+  def self.exec_async(val)
+    @exec_queue << val
   end
 
   # ####
+
+  attr_reader :driver
 
   def initialize(app, driver)
     @app = app
@@ -90,7 +106,8 @@ def start_all
 
 
   #browser_thread = Thread.new {
-  @driver = driver = Selenium::WebDriver.for :firefox
+  #@driver = driver = Selenium::WebDriver.for :firefox
+  @driver = driver = Selenium::WebDriver.for :chrome
   Thread.new {
     begin
       driver.navigate.to "http://localhost:8080"
